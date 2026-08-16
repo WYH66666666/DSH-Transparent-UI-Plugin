@@ -130,14 +130,13 @@
 }
 
 /* Fluid board canvas: the ported deepseek.com shader fills the whole
-   backdrop —one unified water under every column. */
+   backdrop —one unified water under every column. The tone picker supplies
+   the palette (depth baked into the colors), so no global filter here. */
 [data-dsh-aqua] [data-dsh-aqua-fluid-canvas] {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  /* The fluid-color knob: hue-shifts the whole water board in place. */
-  filter: hue-rotate(var(--dsh-aqua-fluid-hue, 0deg));
 }
 
 /* Custom wallpaper: the backdrop-source knob swaps the fluid board for an
@@ -198,6 +197,16 @@
 
 [data-dsh-aqua] [data-dsh-aqua-ambient][data-background='fluid'] [data-dsh-aqua-wallpaper] {
   display: none;
+}
+
+/* Interactive mesh: the site's dot-grid decoration, full-viewport inside the
+   ambient scene; the pointer interacts through the window listener. */
+[data-dsh-aqua] [data-dsh-aqua-mesh] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 /* Ambient marine life: brand-fish silhouettes, shrimp, bubbles, plankton.
@@ -498,8 +507,10 @@
   padding: 0;
   border-radius: 16px;
   /* The right margin rides the same clock as the fade, so the rail eases
-     into its floating spot as the wide content dissolves. */
-  transition: margin 150ms var(--ds-ease-in-out), border-radius 150ms var(--ds-ease-in-out);
+     into its floating spot as the wide content dissolves. The transform
+     entry keeps the hover press smooth while collapsed (the collapsed rule
+     out-ranks the press transition, so it must carry transform too). */
+  transition: margin 150ms var(--ds-ease-in-out), border-radius 150ms var(--ds-ease-in-out), transform 0.1s ease-out;
 }
 
 /* The sidebar root freezes at the expanded column width via an inline
@@ -542,12 +553,11 @@
   background: transparent;
 }
 
-/* ---------- Stats line: the composer card's docked footer. It shares the
-   card's glass (same blur, same width, same border) so the two read as ONE
-   piece; the distinction is a hairline divider at the seam plus a slightly
-   more transparent (recessed) fill. The band carries the card's 24px bottom
-   corners and the elevation shadow. The bar's bottom pad grows 8px 鈫?12px so
-   the fused card ends on the sidebar glass card's baseline. ---------- */
+/* ---------- Stats line: the composer card's docked footer (original
+   styling). It shares the card's glass blur/width/border; the distinction
+   is a hairline divider at the seam plus a slightly more transparent
+   (recessed) fill. The seam itself is glued by the spotlight layer's fuse
+   strip (see below), so the two still read as one piece on screen. ---------- */
 [data-dsh-float] [data-dsh-inputbar]:not([class*='hero']) {
   padding-bottom: 12px;
 }
@@ -576,6 +586,83 @@
     color-mix(in srgb, rgb(16 20 28) calc(60% * var(--dsh-aqua-frost, 1)), transparent),
     color-mix(in srgb, rgb(10 12 18) calc(60% * var(--dsh-aqua-frost, 1)), transparent));
   box-shadow: 0 10px 36px rgba(2, 6, 14, 0.5);
+}
+
+/* ---------- Cursor spotlight glow: the official feature-card glow on the
+   glass panes. The overlay div (data-dsh-aqua-glow) is appended inside every
+   data-dsh-aqua-spot pane by the controller, which writes the cursor
+   position into the inline background per pointermove and lights the pane
+   with the data-spot-on marker. The glow sits BEHIND the glass (z-index -1)
+   so the light diffuses through the translucent surface and never covers
+   the content or the outline. ---------- */
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-aqua-spot] {
+  position: relative;
+  /* A stacking context per pane: the glow sits at z-index -1 INSIDE it. */
+  isolation: isolate;
+}
+
+/* The injected glow div must never affect layout: inert by default (compat
+   mode / toggle off), absolute-positioned only while the glow is on. */
+[data-dsh-aqua] [data-dsh-aqua-glow] {
+  display: none;
+}
+
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-aqua-glow] {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  /* Luminous cyan: the fluid backdrop is already blue, so a blue glow
+     reads as plain brightening — cyan shifts the hue visibly. */
+  --dsh-aqua-spot-color: rgba(0, 170, 215, 0.16);
+}
+
+[data-dsh-aqua][data-dsh-aqua-spotlight] body[data-ds-dark-theme] [data-dsh-aqua-glow] {
+  --dsh-aqua-spot-color: rgba(90, 215, 255, 0.17);
+}
+
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-aqua-spot][data-spot-on] [data-dsh-aqua-glow] {
+  opacity: 1;
+}
+
+/* The fused composer + stats spot is an invisible wrapper (no radius of its
+   own) — give its glow the fused card's 24px corners. */
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-inputbar][data-dsh-aqua-spot] [data-dsh-aqua-glow] {
+  border-radius: 24px;
+}
+
+/* While the settings dialog is open, the sidebar must not carry ANY
+   backdrop-filter: it re-anchors the dialog's fixed overlay into the column
+   (the panel traps at 254px instead of its 800px design). */
+[data-dsh-aqua][data-dsh-float] [class*='sidebarCol']:has([role='dialog']) {
+  backdrop-filter: none;
+}
+
+/* ---------- Hover tilt: the geometric press is JS-driven (spotlight.ts
+   writes `perspective(800px) rotateX/rotateY` inline, tracking the cursor —
+   cursor right ⇒ right edge sinks, left edge lifts). A short transform
+   transition smooths both the press-in and the eased return, so the pane
+   glides into the press instead of flashing. */
+[data-dsh-float][data-dsh-aqua-press] [data-dsh-aqua-spot] {
+  transition: transform 0.1s ease-out;
+}
+
+/* ---------- Settings panel glass: material-only — a fixed 50px backdrop
+   blur with a scheme-differentiated translucent fill, applied in BOTH modes
+   (the gate is data-dsh-aqua, not the float attribute). The panel keeps its
+   stock layout, tokens and radius; only the surface turns glass. The `body`
+   hop out-ranks the compat generic glass (blur 12px on `panel` classes). ---------- */
+[data-dsh-aqua] body [role='dialog'] {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(50px);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] {
+  background: rgba(17, 26, 39, 0.55);
 }
 
 /* ---------- Sidebar: the selected session gets an accent bar and a soft halo. ---------- */
@@ -622,11 +709,14 @@
   z-index: 7;
   pointer-events: none;
   backdrop-filter: blur(5px);
-  background: rgba(255, 255, 255, 0.5);
+  /* Whisper-thin veil: at the clear-frost defaults the fade shows through
+     the glass panes, so it must stay barely there (a 0.45 black read as a
+     film under the trajectory/stats glass). */
+  background: rgba(255, 255, 255, 0.2);
 }
 
 [data-dsh-aqua] body[data-ds-dark-theme] [data-dsh-aqua-fade] {
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 [data-dsh-aqua] [data-dsh-aqua-fade='top'] {
@@ -654,6 +744,18 @@
 /* ---------- Display typography: the serif face marks headings and the
    session tree, so the page reads in two voices —serif headings over the
    sans body. Space Grotesk keeps Latin/digits in the same stack. ---------- */
+
+/* Chat text: a 1px halo blurs the backdrop right at the glyph edges (the
+   closest CSS can get to "frost the background near the text"), plus a
+   whisper of drop shadow in light mode. */
+[data-dsh-aqua] [data-conversation-scroll] {
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+[data-dsh-aqua] body:not([data-ds-dark-theme]) [data-conversation-scroll] {
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.55), 0 1px 2px rgba(19, 45, 83, 0.08);
+}
+
 [data-dsh-float] [role='dialog'] h2 {
   font-family: 'Space Grotesk Variable', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
   font-weight: 600;
@@ -743,6 +845,9 @@
   [data-dsh-aqua] [data-aqua-critter] {
     animation: none;
   }
+
+  /* The tilt is skipped in JS under reduced motion (spotlight.ts checks the
+     media query); the glow stays as a plain hover wash. */
 
   [data-dsh-aqua] [data-aqua-critter='bubble'] {
     opacity: 0;

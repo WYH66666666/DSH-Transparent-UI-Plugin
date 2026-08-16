@@ -54,12 +54,16 @@ export function apply(ctx: ClientContext): void {
       blur: s.blur,
       frost: s.frost,
       fluidHue: s.fluidHue,
+      fluidDepth: s.fluidDepth,
       bgBrightness: s.bgBrightness,
       dark: layer.getDark(),
       background: s.background,
       wallpaper: s.wallpaper,
       whale: s.whale,
       critters: s.critters,
+      mesh: s.mesh,
+      spotlight: s.spotlight,
+      press: s.press,
       wallpaperBlur: s.wallpaperBlur,
       wallpaperFrost: s.wallpaperFrost,
     }
@@ -106,6 +110,10 @@ export function apply(ctx: ClientContext): void {
         layer.setFluidHue(fluidHue)
         sync()
       },
+      setFluidDepth: (fluidDepth) => {
+        layer.setFluidDepth(fluidDepth)
+        sync()
+      },
       setBgBrightness: (bgBrightness) => {
         layer.setBgBrightness(bgBrightness)
         sync()
@@ -124,6 +132,18 @@ export function apply(ctx: ClientContext): void {
       },
       setCritters: (critters) => {
         layer.setCritters(critters)
+        sync()
+      },
+      setMesh: (mesh) => {
+        layer.setMesh(mesh)
+        sync()
+      },
+      setSpotlight: (spotlight) => {
+        layer.setSpotlight(spotlight)
+        sync()
+      },
+      setPress: (press) => {
+        layer.setPress(press)
         sync()
       },
       setWallpaperBlur: (wallpaperBlur) => {

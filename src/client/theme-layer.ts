@@ -15,9 +15,12 @@ import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/clien
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { ensureAmbientScene, removeAmbientScene, ensurePageFades, removePageFades } from './critters.ts'
 import { attachFluidShader, SITE_FLUID_PARAMS, type FluidParams, type FluidShaderHandle } from './fluid-shader.ts'
+import { fluidToneColors } from './fluid-tones.ts'
 import { attachFluidInteractions } from './fluid-interactions.ts'
 import { startSeamStamper } from './seam-stamper.ts'
 import { mountWhale, type WhaleHandle } from './whale.ts'
+import { mountMesh, type MeshHandle } from './mesh.ts'
+import { startSpotlight, SPOTLIGHT_ATTRIBUTE, PRESS_ATTRIBUTE } from './spotlight.ts'
 
 /** html attribute selecting the Aqua layer: CSS hooks and ambient effects. */
 export const AQUA_ATTRIBUTE = 'data-dsh-aqua'
@@ -218,8 +221,10 @@ export interface AquaSettings {
   blur: number
   /** Glass fill opacity, 0-100 (50 = the shipped look; drives the frost multiplier). */
   frost: number
-  /** Fluid hue shift, degrees. */
+  /** Fluid hue, degrees (0-360, continuous). */
   fluidHue: number
+  /** Fluid depth, 0-100 (0 = deep saturated, 100 = pale light, continuous). */
+  fluidDepth: number
   /** Background brightness, 0-100 (0 = pure black, 50 = transparent, 100 = pure white). */
   bgBrightness: number
   /** Backdrop source: the living fluid board or a custom wallpaper. */
@@ -230,22 +235,33 @@ export interface AquaSettings {
   whale: boolean
   /** Ambient marine life (fish / bubbles / plankton). */
   critters: boolean
+  /** Interactive mesh (the site's dot-grid with pointer repel). */
+  mesh: boolean
+  /** Cursor spotlight glow that follows the pointer over the glass panes. */
+  spotlight: boolean
+  /** Hover press-down: the pane under the cursor sinks a touch (tactile depth). */
+  press: boolean
   /** Wallpaper blur radius, px. */
   wallpaperBlur: number
   /** Wallpaper frost veil, 0-100. */
   wallpaperFrost: number
 }
 
+/** Shipped defaults — what a first-time install sees (the tuned look). */
 const SETTINGS_DEFAULTS: AquaSettings = {
   mode: 'mica',
-  blur: 2,
-  frost: 20,
-  fluidHue: 316,
+  blur: 20,
+  frost: 7,
   bgBrightness: 50,
   background: 'fluid',
   wallpaper: '',
   whale: true,
   critters: true,
+  mesh: true,
+  spotlight: true,
+  press: true,
+  fluidHue: 182,
+  fluidDepth: 25,
   wallpaperBlur: 0,
   wallpaperFrost: 0,
 }
@@ -255,6 +271,7 @@ const NUMERIC_KEYS = {
   blur: 'dsh.ui-aqua.blur',
   frost: 'dsh.ui-aqua.frost',
   fluidHue: 'dsh.ui-aqua.fluidHue',
+  fluidDepth: 'dsh.ui-aqua.fluidDepth',
   bgBrightness: 'dsh.ui-aqua.bgBrightness',
   wallpaperBlur: 'dsh.ui-aqua.wallpaperBlur',
   wallpaperFrost: 'dsh.ui-aqua.wallpaperFrost',
@@ -266,6 +283,9 @@ const BACKGROUND_KEY = 'dsh.ui-aqua.background'
 const WALLPAPER_KEY = 'dsh.ui-aqua.wallpaper'
 const WHALE_KEY = 'dsh.ui-aqua.whale'
 const CRITTERS_KEY = 'dsh.ui-aqua.critters'
+const MESH_KEY = 'dsh.ui-aqua.mesh'
+const SPOTLIGHT_KEY = 'dsh.ui-aqua.spotlight'
+const PRESS_KEY = 'dsh.ui-aqua.press'
 
 /** Clamp a numeric knob into its sane range. */
 function clampSetting(key: NumericKey, value: number): number {
@@ -389,25 +409,64 @@ function writeCritters(value: boolean): void {
   }
 }
 
-/** Fluid palettes: one unified full-screen water. Dark inverts the official
- *  light look with luminous accent cores; light keeps strong blue contrast. */
-const FLUID_PALETTES: Record<'light' | 'dark', FluidParams> = {
-  light: {
-    ...SITE_FLUID_PARAMS,
-    color1: '#5B8DE0',
-    color2: '#A9C6F5',
-    color3: '#FFFFFF',
-    distortion: 24,
-    swirl: 14,
-    offsetY: 40,
-  },
-  dark: {
-    ...SITE_FLUID_PARAMS,
-    color1: '#2D4F8D',
-    color2: '#101E38',
-    color3: '#0B1628',
-    offsetY: 40,
-  },
+/** Read the interactive-mesh flag (absent means on). */
+function readMesh(): boolean {
+  try {
+    const raw = localStorage.getItem(MESH_KEY)
+    return raw === null ? true : raw === 'true'
+  } catch {
+    return true
+  }
+}
+
+/** Persist the interactive-mesh flag. */
+function writeMesh(value: boolean): void {
+  try {
+    localStorage.setItem(MESH_KEY, String(value))
+  } catch {
+    /* in-memory state still applies for this tab */
+  }
+}
+
+/** Read the cursor-spotlight flag (absent means on). */
+function readSpotlight(): boolean {
+  try {
+    const raw = localStorage.getItem(SPOTLIGHT_KEY)
+    return raw === null ? true : raw === 'true'
+  } catch {
+    return true
+  }
+}
+
+/** Persist the cursor-spotlight flag. */
+function writeSpotlight(value: boolean): void {
+  try {
+    localStorage.setItem(SPOTLIGHT_KEY, String(value))
+  } catch {
+    /* in-memory state still applies for this tab */
+  }
+}
+
+/** Read the hover-press flag (absent means on). */
+function readPress(): boolean {
+  try {
+    // One-shot migration: the entrance-rise key from the earlier iteration
+    // never shipped — drop it so no stale preference lingers.
+    localStorage.removeItem('dsh.ui-aqua.entrance')
+    const raw = localStorage.getItem(PRESS_KEY)
+    return raw === null ? true : raw === 'true'
+  } catch {
+    return true
+  }
+}
+
+/** Persist the hover-press flag. */
+function writePress(value: boolean): void {
+  try {
+    localStorage.setItem(PRESS_KEY, String(value))
+  } catch {
+    /* in-memory state still applies for this tab */
+  }
 }
 
 /** Current scheme from the presenter-owned body attribute. */
@@ -431,7 +490,9 @@ export class AquaLayer {
   private interactionDisposer: (() => void) | undefined
   private themeListener: (() => void) | undefined
   private seamDisposer: (() => void) | undefined
+  private spotlightDisposer: (() => void) | undefined
   private whaleHandle: WhaleHandle | undefined
+  private meshHandle: MeshHandle | undefined
   private readonly ctx: Context
 
   /**
@@ -446,9 +507,9 @@ export class AquaLayer {
           this.sync()
         }
         const key = event.key
-        if (key !== null && (key in NUMERIC_KEYS || key === BACKGROUND_KEY || key === WALLPAPER_KEY || key === MODE_KEY || key === WHALE_KEY || key === CRITTERS_KEY)) {
+        if (key !== null && (key in NUMERIC_KEYS || key === BACKGROUND_KEY || key === WALLPAPER_KEY || key === MODE_KEY || key === WHALE_KEY || key === CRITTERS_KEY || key === MESH_KEY || key === SPOTLIGHT_KEY || key === PRESS_KEY)) {
           this.reloadSettings()
-          if (this.enabled) { this.applySettings(); this.applyTokens(); this.syncWhale() }
+          if (this.enabled) { this.applySettings(); this.applyTokens(); this.applyFluidPalettes(); this.syncWhale() }
         }
       }
       window.addEventListener('storage', onStorage)
@@ -502,16 +563,28 @@ export class AquaLayer {
 
   /** Re-read every knob from localStorage into memory. */
   private reloadSettings(): void {
+    try {
+      // One-shot cleanup: knobs from reverted iterations never shipped.
+      localStorage.removeItem('dsh.ui-aqua.tilt')
+      localStorage.removeItem('dsh.ui-aqua.lens')
+      localStorage.removeItem('dsh.ui-aqua.fluidTone')
+    } catch {
+      /* ignore */
+    }
     this.settings = {
       mode: readMode(),
       blur: readSetting('blur'),
       frost: readSetting('frost'),
       fluidHue: readSetting('fluidHue'),
+      fluidDepth: readSetting('fluidDepth'),
       bgBrightness: readSetting('bgBrightness'),
       background: readBackground(),
       wallpaper: readWallpaper(),
       whale: readWhale(),
       critters: readCritters(),
+      mesh: readMesh(),
+      spotlight: readSpotlight(),
+      press: readPress(),
       wallpaperBlur: readSetting('wallpaperBlur'),
       wallpaperFrost: readSetting('wallpaperFrost'),
     }
@@ -551,13 +624,22 @@ export class AquaLayer {
     if (this.enabled) this.applySettings()
   }
 
-  /** Set the fluid hue shift (degrees). */
+  /** Set the fluid hue (degrees, continuous). */
   setFluidHue(value: number): void {
     const next = clampSetting('fluidHue', value)
     if (next === this.settings.fluidHue) return
     this.settings.fluidHue = next
     writeSetting('fluidHue', next)
-    if (this.enabled) this.applySettings()
+    if (this.enabled) this.applyFluidPalettes()
+  }
+
+  /** Set the fluid depth (0-100, continuous: deep ↔ pale). */
+  setFluidDepth(value: number): void {
+    const next = clampSetting('fluidDepth', value)
+    if (next === this.settings.fluidDepth) return
+    this.settings.fluidDepth = next
+    writeSetting('fluidDepth', next)
+    if (this.enabled) this.applyFluidPalettes()
   }
 
   /** Set the background brightness (0-100: 0 = pure black, 50 = transparent, 100 = pure white). */
@@ -600,6 +682,30 @@ export class AquaLayer {
     if (this.enabled) this.applySettings()
   }
 
+  /** Set the interactive-mesh flag (dot-grid decoration). */
+  setMesh(value: boolean): void {
+    if (value === this.settings.mesh) return
+    this.settings.mesh = value
+    writeMesh(value)
+    if (this.enabled) this.syncMesh()
+  }
+
+  /** Set the cursor-spotlight flag (pointer-tracking glass glow). */
+  setSpotlight(value: boolean): void {
+    if (value === this.settings.spotlight) return
+    this.settings.spotlight = value
+    writeSpotlight(value)
+    if (this.enabled) this.applySettings()
+  }
+
+  /** Set the hover-press flag (pane sinks a touch under the cursor). */
+  setPress(value: boolean): void {
+    if (value === this.settings.press) return
+    this.settings.press = value
+    writePress(value)
+    if (this.enabled) this.applySettings()
+  }
+
   /** Set the wallpaper blur radius (px). */
   setWallpaperBlur(value: number): void {
     const next = clampSetting('wallpaperBlur', value)
@@ -634,7 +740,6 @@ export class AquaLayer {
     style.setProperty('--dsh-aqua-frost', String(Math.min(this.settings.frost / 50, 1.4)))
     // The new-session button's frost rides the same knob, +20 points.
     style.setProperty('--dsh-aqua-surface-frost', String(Math.min((this.settings.frost + 20) / 50, 1.4)))
-    style.setProperty('--dsh-aqua-fluid-hue', `${this.settings.fluidHue}deg`)
     style.setProperty('--dsh-aqua-wallpaper-blur', `${this.settings.wallpaperBlur}px`)
     style.setProperty('--dsh-aqua-wallpaper-frost', String(this.settings.wallpaperFrost / 100))
     // Background brightness: dark mode darkens (0 = pure black, 50 = off),
@@ -649,6 +754,11 @@ export class AquaLayer {
     const compat = this.settings.mode === 'compat'
     document.documentElement.toggleAttribute('data-dsh-float', !compat)
     document.documentElement.toggleAttribute('data-dsh-compat', compat)
+
+    // Cursor spotlight and hover press ride the floating glass only —
+    // compat keeps the stock layout, so neither effect applies there.
+    document.documentElement.toggleAttribute(SPOTLIGHT_ATTRIBUTE, !compat && this.settings.spotlight)
+    document.documentElement.toggleAttribute(PRESS_ATTRIBUTE, !compat && this.settings.press)
 
     // Backdrop source: flip the ambient container between fluid and wallpaper.
     const ambient = document.querySelector<HTMLElement>('[data-dsh-aqua-ambient]')
@@ -681,7 +791,9 @@ export class AquaLayer {
     this.applyTokens()
     this.mountFluid()
     this.startSeamStamper()
+    this.startSpotlightFeed()
     this.syncWhale()
+    this.syncMesh()
   }
 
   /** Mount or drop the particle whale to match enabled + the whale flag. */
@@ -697,12 +809,31 @@ export class AquaLayer {
     }
   }
 
+  /** Mount or drop the interactive mesh to match enabled + the mesh flag. */
+  private syncMesh(): void {
+    if (this.enabled && this.settings.mesh) {
+      if (this.meshHandle !== undefined) return
+      const ambient = document.querySelector<HTMLElement>('[data-dsh-aqua-ambient]')
+      if (ambient === null) return
+      this.meshHandle = mountMesh(ambient)
+    } else {
+      this.meshHandle?.dispose()
+      this.meshHandle = undefined
+    }
+  }
+
   private unmount(): void {
     document.documentElement.removeAttribute(AQUA_ATTRIBUTE)
     document.documentElement.removeAttribute('data-dsh-float')
     document.documentElement.removeAttribute('data-dsh-compat')
+    document.documentElement.removeAttribute(SPOTLIGHT_ATTRIBUTE)
+    document.documentElement.removeAttribute(PRESS_ATTRIBUTE)
+    this.spotlightDisposer?.()
+    this.spotlightDisposer = undefined
     this.whaleHandle?.dispose()
     this.whaleHandle = undefined
+    this.meshHandle?.dispose()
+    this.meshHandle = undefined
     this.tokenDisposer?.()
     this.tokenDisposer = undefined
     this.teardownFluid()
@@ -741,7 +872,9 @@ export class AquaLayer {
   }
 
   private fluidParams(): FluidParams {
-    return FLUID_PALETTES[activeScheme()]
+    // Continuous hue + depth drive the palette through HSL interpolation —
+    // the depth lives in the colors, so the canvas needs no global filter.
+    return { ...SITE_FLUID_PARAMS, ...fluidToneColors(this.dark, this.settings.fluidHue, this.settings.fluidDepth) }
   }
 
   private applyFluidPalettes(): void {
@@ -752,5 +885,11 @@ export class AquaLayer {
   private startSeamStamper(): void {
     if (this.seamDisposer !== undefined) return
     this.seamDisposer = startSeamStamper()
+  }
+
+  /** Attach the cursor-spotlight pointer feeds (idempotent per mount). */
+  private startSpotlightFeed(): void {
+    if (this.spotlightDisposer !== undefined) return
+    this.spotlightDisposer = startSpotlight()
   }
 }

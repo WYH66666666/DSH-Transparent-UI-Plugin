@@ -15,8 +15,10 @@ export interface AquaRowState {
   blur: number
   /** Glass frost amount, 0-100. */
   frost: number
-  /** Fluid hue shift, degrees. */
+  /** Fluid hue, degrees (0-360, continuous). */
   fluidHue: number
+  /** Fluid depth, 0-100 (continuous). */
+  fluidDepth: number
   /** Background brightness, 0-100. */
   bgBrightness: number
   /** Resolved palette is dark (brightness knob = darkening half). */
@@ -29,6 +31,12 @@ export interface AquaRowState {
   whale: boolean
   /** Ambient marine life (fish / bubbles / plankton). */
   critters: boolean
+  /** Interactive mesh (the site's dot-grid with pointer repel). */
+  mesh: boolean
+  /** Cursor spotlight glow following the pointer over the glass panes. */
+  spotlight: boolean
+  /** Hover press-down for the glass panes. */
+  press: boolean
   /** Wallpaper blur radius, px. */
   wallpaperBlur: number
   /** Wallpaper frost veil, 0-100. */
@@ -44,12 +52,16 @@ export interface AquaSettingsPayload {
   blur: number
   frost: number
   fluidHue: number
+  fluidDepth: number
   bgBrightness: number
   dark: boolean
   background: 'fluid' | 'wallpaper'
   wallpaper: string
   whale: boolean
   critters: boolean
+  mesh: boolean
+  spotlight: boolean
+  press: boolean
   wallpaperBlur: number
   wallpaperFrost: number
 }
@@ -68,15 +80,19 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
     init: (): AquaRowState => ({
       enabled: true,
       mode: 'mica',
-      blur: 2,
-      frost: 20,
-      fluidHue: 316,
+      blur: 20,
+      frost: 7,
+      fluidHue: 182,
+      fluidDepth: 25,
       bgBrightness: 50,
       dark: false,
       background: 'fluid',
       wallpaper: '',
       whale: true,
       critters: true,
+      mesh: true,
+      spotlight: true,
+      press: true,
       wallpaperBlur: 0,
       wallpaperFrost: 0,
       revision: -1,
@@ -89,12 +105,16 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
         d.blur = next.blur
         d.frost = next.frost
         d.fluidHue = next.fluidHue
+        d.fluidDepth = next.fluidDepth
         d.bgBrightness = next.bgBrightness
         d.dark = next.dark
         d.background = next.background
         d.wallpaper = next.wallpaper
         d.whale = next.whale
         d.critters = next.critters
+        d.mesh = next.mesh
+        d.spotlight = next.spotlight
+        d.press = next.press
         d.wallpaperBlur = next.wallpaperBlur
         d.wallpaperFrost = next.wallpaperFrost
         d.revision = revision

@@ -1,14 +1,29 @@
-/* Aqua row in the General settings section: controls that follow the
- * Appearance cubes directly (no row title of their own), same hairline
- * separator rhythm as the shipped rows; the section column strips the last
- * one. Nothing renders while the master switch is off. */
+/* Aqua row in the General settings section: four titled sub-groups (mode /
+ * glass material / background / decorations) that follow the Appearance
+ * cubes directly, same hairline separator rhythm as the shipped rows; the
+ * section column strips the last one. Nothing renders while the master
+ * switch is off. */
 
 .group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   padding: 8px 0 16px;
   border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* One titled sub-group: title over its control stack. */
+.subGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subTitle {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
 }
 
 /* Controls stack: one column of rows and knobs. */
@@ -46,6 +61,15 @@
 .rowHint {
   margin-top: -4px;
   margin-left: 102px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Full-width hint under a label-less row (the mode hint sits under the
+ * segmented control, which starts at the group's left edge). */
+.groupHint {
+  margin-top: -4px;
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
