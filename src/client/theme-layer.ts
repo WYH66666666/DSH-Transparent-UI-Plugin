@@ -16,6 +16,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { ensureAmbientScene, removeAmbientScene, ensurePageFades, removePageFades } from './critters.ts'
 import { attachFluidShader, SITE_FLUID_PARAMS, type FluidParams, type FluidShaderHandle } from './fluid-shader.ts'
 import { fluidToneColors, HUE_BASE } from './fluid-tones.ts'
+import { deleteVideoBlob, loadVideoBlob, loadVideoHandle } from './wallpaper-store.ts'
 import { attachFluidInteractions } from './fluid-interactions.ts'
 import { startSeamStamper } from './seam-stamper.ts'
 import { mountWhale, type WhaleHandle } from './whale.ts'
@@ -245,6 +246,10 @@ export interface AquaSettings {
   wallpaperBlur: number
   /** Wallpaper frost veil, 0-100. */
   wallpaperFrost: number
+  /** Video wallpaper blur radius, px (0 = crisp, 40 = heavy acrylic). */
+  videoBlur: number
+  /** Video wallpaper brightness, 0-100 (100 = fully lit, 0 = deepest dim). */
+  videoBrightness: number
 }
 
 /** Shipped defaults — what a first-time install sees (the tuned look). */
@@ -264,6 +269,8 @@ const SETTINGS_DEFAULTS: AquaSettings = {
   fluidDepth: 25,
   wallpaperBlur: 0,
   wallpaperFrost: 0,
+  videoBlur: 6,
+  videoBrightness: 45,
 }
 
 /** Numeric knob keys and their localStorage names. */
@@ -275,6 +282,8 @@ const NUMERIC_KEYS = {
   bgBrightness: 'dsh.ui-aqua.bgBrightness',
   wallpaperBlur: 'dsh.ui-aqua.wallpaperBlur',
   wallpaperFrost: 'dsh.ui-aqua.wallpaperFrost',
+  videoBlur: 'dsh.ui-aqua.videoBlur',
+  videoBrightness: 'dsh.ui-aqua.videoBrightness',
 } as const
 type NumericKey = keyof typeof NUMERIC_KEYS
 
@@ -289,8 +298,8 @@ const PRESS_KEY = 'dsh.ui-aqua.press'
 
 /** Clamp a numeric knob into its sane range. */
 function clampSetting(key: NumericKey, value: number): number {
-  const max = key === 'blur' || key === 'wallpaperBlur' ? 40
-    : key === 'frost' || key === 'wallpaperFrost' || key === 'bgBrightness' ? 100
+  const max = key === 'blur' || key === 'wallpaperBlur' || key === 'videoBlur' ? 40
+    : key === 'frost' || key === 'wallpaperFrost' || key === 'bgBrightness' || key === 'videoBrightness' ? 100
       : 360
   return Number.isFinite(value) ? Math.min(max, Math.max(0, value)) : SETTINGS_DEFAULTS[key]
 }
@@ -493,6 +502,10 @@ export class AquaLayer {
   private spotlightDisposer: (() => void) | undefined
   private whaleHandle: WhaleHandle | undefined
   private meshHandle: MeshHandle | undefined
+  /** Object URL of the current large-video wallpaper (revoked on replace). */
+  private videoObjectUrl: string | undefined
+  /** IndexedDB id backing the current object URL (guards against reloads). */
+  private videoBlobId: string | undefined
   private readonly ctx: Context
 
   /**
@@ -587,6 +600,8 @@ export class AquaLayer {
       press: readPress(),
       wallpaperBlur: readSetting('wallpaperBlur'),
       wallpaperFrost: readSetting('wallpaperFrost'),
+      videoBlur: readSetting('videoBlur'),
+      videoBrightness: readSetting('videoBrightness'),
     }
   }
 
@@ -662,10 +677,20 @@ export class AquaLayer {
     if (this.enabled) this.applySettings()
   }
 
-  /** Set the wallpaper image (a data URL; empty clears it). */
+  /** Set the wallpaper image (a data URL; empty clears it) or a large video
+   *  (`idb:<id>` marker whose blob lives in IndexedDB). */
   setWallpaper(value: string): void {
+    const previous = this.settings.wallpaper
     this.settings.wallpaper = value
     writeWallpaper(value)
+    if (previous.startsWith('idb:') && value !== previous) {
+      void deleteVideoBlob(previous.slice(4))
+    }
+    if (!value.startsWith('idb:') && this.videoObjectUrl !== undefined) {
+      URL.revokeObjectURL(this.videoObjectUrl)
+      this.videoObjectUrl = undefined
+      this.videoBlobId = undefined
+    }
     if (this.enabled) this.applySettings()
   }
 
@@ -727,6 +752,35 @@ export class AquaLayer {
     if (this.enabled) this.applySettings()
   }
 
+  /** Set the video wallpaper blur radius (px). */
+  setVideoBlur(value: number): void {
+    const next = clampSetting('videoBlur', value)
+    if (next === this.settings.videoBlur) return
+    this.settings.videoBlur = next
+    writeSetting('videoBlur', next)
+    if (this.enabled) this.applySettings()
+  }
+
+  /** Set the video wallpaper brightness (0-100, 100 = fully lit). */
+  setVideoBrightness(value: number): void {
+    const next = clampSetting('videoBrightness', value)
+    if (next === this.settings.videoBrightness) return
+    this.settings.videoBrightness = next
+    writeSetting('videoBrightness', next)
+    if (this.enabled) this.applySettings()
+  }
+
+  /** After the user re-grants file access (选择视频 click on an fsa: video),
+   *  drop the mount guard and re-apply so the file is re-read and played. */
+  authorizeVideo(): void {
+    if (this.videoObjectUrl !== undefined) {
+      URL.revokeObjectURL(this.videoObjectUrl)
+      this.videoObjectUrl = undefined
+    }
+    this.videoBlobId = undefined
+    if (this.enabled) this.applySettings()
+  }
+
   private sync(): void {
     if (this.enabled) this.mount()
     else this.unmount()
@@ -751,6 +805,11 @@ export class AquaLayer {
       : `hsla(${glowHue}, 90%, 45%, 0.16)`)
     style.setProperty('--dsh-aqua-wallpaper-blur', `${this.settings.wallpaperBlur}px`)
     style.setProperty('--dsh-aqua-wallpaper-frost', String(this.settings.wallpaperFrost / 100))
+    // Video wallpaper: blur rides the video's own filter; brightness drives
+    // the scrim veil's alpha (100 = fully lit / no veil, 0 = deepest dim,
+    // capped at 0.65 so the film never goes fully black).
+    style.setProperty('--dsh-aqua-video-blur', `${this.settings.videoBlur}px`)
+    style.setProperty('--dsh-aqua-video-dim', String(((100 - this.settings.videoBrightness) / 100) * 0.65))
     // Background brightness: dark mode darkens (0 = pure black, 50 = off),
     // light mode brightens (50 = off, 100 = pure white) — the knob's range
     // and the overlay direction both follow the resolved scheme.
@@ -773,14 +832,103 @@ export class AquaLayer {
     const ambient = document.querySelector<HTMLElement>('[data-dsh-aqua-ambient]')
     if (ambient !== null) ambient.dataset.background = this.settings.background
     if (ambient !== null) ambient.dataset.critters = this.settings.critters ? 'on' : 'off'
+    // The wallpaper may be an image or a video: images and small videos are
+    // data URLs; large videos are `idb:<id>` markers (blob in IndexedDB);
+    // File System Access videos are `fsa:<name>` markers (the handle lives
+    // in IndexedDB and re-reads the original file).
+    const wallpaper = this.settings.wallpaper
+    const isVideo = wallpaper.startsWith('data:video/') || wallpaper.startsWith('idb:') || wallpaper.startsWith('fsa:')
+    const wallpaperLayer = document.querySelector<HTMLElement>('[data-dsh-aqua-wallpaper-layer]')
+    if (wallpaperLayer !== null) {
+      wallpaperLayer.dataset.background = this.settings.background
+      wallpaperLayer.dataset.media = isVideo ? 'video' : 'image'
+    }
+    // Mirror the wallpaper state onto <html> so the stylesheet can scope
+    // video-mode readability rules (bubble plates) without touching the app.
+    const wallpaperOn = this.settings.background === 'wallpaper' && wallpaper !== ''
+    document.documentElement.toggleAttribute('data-dsh-aqua-wallpaper', wallpaperOn)
+    if (wallpaperOn) {
+      document.documentElement.setAttribute('data-dsh-aqua-media', isVideo ? 'video' : 'image')
+    } else {
+      document.documentElement.removeAttribute('data-dsh-aqua-media')
+    }
     const img = document.querySelector<HTMLImageElement>('[data-dsh-aqua-wallpaper-img]')
     if (img !== null) {
-      if (this.settings.background === 'wallpaper' && this.settings.wallpaper !== '') {
-        img.src = this.settings.wallpaper
+      if (this.settings.background === 'wallpaper' && wallpaper !== '' && !isVideo) {
+        img.src = wallpaper
       } else {
         img.removeAttribute('src')
       }
     }
+    const video = document.querySelector<HTMLVideoElement>('[data-dsh-aqua-wallpaper-video]')
+    if (video !== null) {
+      if (this.settings.background === 'wallpaper' && isVideo) {
+        if (wallpaper.startsWith('idb:')) {
+          const id = wallpaper.slice(4)
+          if (this.videoBlobId === id && this.videoObjectUrl !== undefined) {
+            // Already mounted — never reload/revoke on repeated applySettings
+            // runs (knob tweaks would otherwise restart the video).
+          } else {
+            void loadVideoBlob(id).then((blob) => {
+              if (blob === null) return
+              if (this.settings.wallpaper !== wallpaper) return // stale load
+              const url = URL.createObjectURL(blob)
+              if (this.videoObjectUrl !== undefined) URL.revokeObjectURL(this.videoObjectUrl)
+              this.videoObjectUrl = url
+              this.videoBlobId = id
+              video.setAttribute('src', url)
+              this.configureWallpaperVideo(video)
+            })
+          }
+        } else if (wallpaper.startsWith('fsa:')) {
+          if (this.videoBlobId === wallpaper && this.videoObjectUrl !== undefined) {
+            // Already mounted — knob tweaks must not reload the file.
+          } else {
+            void loadVideoHandle().then(async (handle) => {
+              if (handle === null) return
+              if (this.settings.wallpaper !== wallpaper) return // stale load
+              try {
+                // The browser remembers the file authorization; only a live
+                // grant lets us re-read the original file automatically.
+                const permission = await handle.queryPermission({ mode: 'read' })
+                if (permission !== 'granted') return // re-authorize on 选择视频 click
+                const file = await handle.getFile()
+                const url = URL.createObjectURL(file)
+                if (this.videoObjectUrl !== undefined) URL.revokeObjectURL(this.videoObjectUrl)
+                this.videoObjectUrl = url
+                this.videoBlobId = wallpaper
+                video.setAttribute('src', url)
+                this.configureWallpaperVideo(video)
+              } catch {
+                /* file moved/deleted or access revoked — stays empty until re-picked */
+              }
+            })
+          }
+        } else if (video.getAttribute('src') !== wallpaper) {
+          video.setAttribute('src', wallpaper)
+          this.configureWallpaperVideo(video)
+        }
+      } else {
+        video.pause()
+        video.removeAttribute('src')
+        video.load()
+      }
+    }
+  }
+
+  /** The wallpaper plays as a plain <video> element (the browser's own
+   *  decoder, no player chrome at all): looping on, cover fill via CSS, and
+   *  autoplay with a muted fallback where policy requires it. A direct
+   *  element (not an iframe) keeps backdrop-filter working over it, so the
+   *  glass panels stay frosted above the video. */
+  private configureWallpaperVideo(video: HTMLVideoElement): void {
+    video.loop = true
+    if (!video.paused) return
+    void video.play().catch(() => {
+      // Autoplay policy blocked unmuted playback — mute and retry.
+      video.muted = true
+      void video.play().catch(() => { /* ignore */ })
+    })
   }
 
   /** Apply the mode's token layer (floating palette, or translucent compat). */
@@ -835,6 +983,8 @@ export class AquaLayer {
     document.documentElement.removeAttribute(AQUA_ATTRIBUTE)
     document.documentElement.removeAttribute('data-dsh-float')
     document.documentElement.removeAttribute('data-dsh-compat')
+    document.documentElement.removeAttribute('data-dsh-aqua-wallpaper')
+    document.documentElement.removeAttribute('data-dsh-aqua-media')
     document.documentElement.removeAttribute(SPOTLIGHT_ATTRIBUTE)
     document.documentElement.removeAttribute(PRESS_ATTRIBUTE)
     this.spotlightDisposer?.()
@@ -845,6 +995,11 @@ export class AquaLayer {
     this.meshHandle = undefined
     this.tokenDisposer?.()
     this.tokenDisposer = undefined
+    if (this.videoObjectUrl !== undefined) {
+      URL.revokeObjectURL(this.videoObjectUrl)
+      this.videoObjectUrl = undefined
+      this.videoBlobId = undefined
+    }
     this.teardownFluid()
     removeAmbientScene()
     removePageFades()

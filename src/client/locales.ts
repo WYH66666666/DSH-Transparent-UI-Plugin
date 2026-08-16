@@ -32,10 +32,14 @@ export const zh = {
   'aqua.backgroundWallpaper': '壁纸',
   'aqua.wallpaper': '壁纸',
   'aqua.wallpaperHint': '浅色壁纸用浅色模式，深色壁纸用深色模式⚠️',
-  'aqua.chooseWallpaper': '选择图片',
+  'aqua.chooseImage': '选择图片',
+  'aqua.chooseVideo': '选择视频',
   'aqua.deleteWallpaper': '删除',
   'aqua.wallpaperBlur': '壁纸模糊度',
   'aqua.wallpaperFrost': '壁纸磨砂度',
+  'aqua.videoBlur': '视频模糊度',
+  'aqua.videoBrightness': '视频亮度',
+  'aqua.videoHint': '⚠️视频会自动压暗以保证文字清晰，可用模糊度和亮度调节；刷新后未自动播放时点一下“选择视频”即可恢复',
 } satisfies Record<string, string>
 
 export type AquaLocaleKey = keyof typeof zh
@@ -76,8 +80,12 @@ export const en = {
   'aqua.backgroundWallpaper': 'Wallpaper',
   'aqua.wallpaper': 'Wallpaper',
   'aqua.wallpaperHint': 'Use light mode for light wallpapers, dark mode for dark wallpapers ⚠️',
-  'aqua.chooseWallpaper': 'Choose image',
+  'aqua.chooseImage': 'Choose image',
+  'aqua.chooseVideo': 'Choose video',
   'aqua.deleteWallpaper': 'Delete',
   'aqua.wallpaperBlur': 'Wallpaper blur',
   'aqua.wallpaperFrost': 'Wallpaper frost',
+  'aqua.videoBlur': 'Video blur',
+  'aqua.videoBrightness': 'Video brightness',
+  'aqua.videoHint': '⚠️ The video is dimmed automatically to keep text readable — adjust blur and brightness here; if it does not play after a reload, click "Choose video" once to restore access',
 } satisfies Record<AquaLocaleKey, string>

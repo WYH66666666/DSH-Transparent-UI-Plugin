@@ -15,6 +15,7 @@ import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-cli
 // Type-only: pulls the `settings.general.item` SlotMap merge.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { fileToDataUrl, Knob, Segmented } from './AquaControls.tsx'
+import { loadVideoHandle, saveVideoBlob, saveVideoHandle } from './wallpaper-store.ts'
 import type { createAquaRowStore } from './settings-store.ts'
 import css from './AquaAppearanceRow.module.css'
 
@@ -50,6 +51,12 @@ export interface AquaAppearanceRowInjected {
   setWallpaperBlur: (value: number) => void
   /** Set the wallpaper frost veil, 0-100. */
   setWallpaperFrost: (value: number) => void
+  /** Set the video wallpaper blur radius, px. */
+  setVideoBlur: (value: number) => void
+  /** Set the video wallpaper brightness, 0-100. */
+  setVideoBrightness: (value: number) => void
+  /** Re-read the fsa: video after the user re-granted file access. */
+  authorizeVideo: () => void
 }
 
 /** Full component props: runtime share + store share + locale seat + injected face. */
@@ -66,7 +73,7 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
   const {
     t, setMode, setBlur, setFrost, setFluidHue, setFluidDepth, setBgBrightness,
     setBackground, setWallpaper, setWhale, setCritters, setMesh, setSpotlight, setPress,
-    setWallpaperBlur, setWallpaperFrost, useStore,
+    setWallpaperBlur, setWallpaperFrost, setVideoBlur, setVideoBrightness, authorizeVideo, useStore,
   } = props
   const enabled = useStore(s => s.enabled)
   const mode = useStore(s => s.mode)
@@ -85,7 +92,77 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
   const wallpaper = useStore(s => s.wallpaper)
   const wallpaperBlur = useStore(s => s.wallpaperBlur)
   const wallpaperFrost = useStore(s => s.wallpaperFrost)
+  const videoBlur = useStore(s => s.videoBlur)
+  const videoBrightness = useStore(s => s.videoBrightness)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const videoRef = useRef<HTMLInputElement | null>(null)
+
+  // Videos are `idb:` blobs, `fsa:` remembered-file handles, or legacy
+  // `data:video/` URLs.
+  const isVideoWallpaper = wallpaper.startsWith('data:video/') || wallpaper.startsWith('idb:') || wallpaper.startsWith('fsa:')
+
+  /** Pick a video. Chromium: File System Access — the browser remembers the
+   *  file authorization, so later visits re-read the ORIGINAL file with no
+   *  storage copy. Other browsers fall back to the plain file input. */
+  const pickVideo = (): void => {
+    if (window.showOpenFilePicker !== undefined) {
+      void (async () => {
+        try {
+          const [handle] = await window.showOpenFilePicker({
+            multiple: false,
+            types: [{ description: 'Video', accept: { 'video/*': ['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv'] } }],
+          })
+          if (handle === undefined) return
+          setBackground('wallpaper')
+          if (await saveVideoHandle(handle)) {
+            setWallpaper(`fsa:${handle.name}`)
+          } else {
+            // idb unavailable — degrade to the blob store / data URL path.
+            const file = await handle.getFile()
+            void saveVideoBlob(file).then((id) => {
+              if (id !== '') setWallpaper(id)
+              else void fileToDataUrl(file).then(setWallpaper)
+            })
+          }
+        } catch {
+          /* picker cancelled — keep current state */
+        }
+      })()
+    } else {
+      videoRef.current?.click()
+    }
+  }
+
+  /** 选择视频 click: an fsa: video with stale permission re-authorizes in
+   *  one click (no picker); anything else opens the picker. */
+  const onChooseVideo = (): void => {
+    if (wallpaper.startsWith('fsa:')) {
+      void (async () => {
+        const handle = await loadVideoHandle()
+        if (handle !== null) {
+          try {
+            const permission = await handle.queryPermission({ mode: 'read' })
+            if (permission === 'granted') {
+              authorizeVideo()
+              return
+            }
+            if (permission === 'prompt') {
+              const next = await handle.requestPermission({ mode: 'read' })
+              if (next === 'granted') {
+                authorizeVideo()
+                return
+              }
+            }
+          } catch {
+            /* fall through to re-pick */
+          }
+        }
+        pickVideo()
+      })()
+    } else {
+      pickVideo()
+    }
+  }
 
   // The brightness knob only ever offers the half that makes sense for the
   // resolved scheme: dark mode darkens (0-50), light mode brightens (50-100).
@@ -165,13 +242,46 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
                     onChange={(e) => {
                       const file = e.target.files?.[0]
                       if (file !== undefined) {
+                        setBackground('wallpaper')
                         void fileToDataUrl(file).then(setWallpaper)
                       }
                       e.target.value = ''
                     }}
                   />
+                  <input
+                    ref={videoRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                    className={css.fileInput}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file !== undefined) {
+                        // Picking a backdrop switches the source to wallpaper
+                        // automatically, so the media shows right away. The
+                        // video plays through the browser's native decoder as
+                        // the background (no controls, no progress bar).
+                        setBackground('wallpaper')
+                        // ALWAYS persist videos in IndexedDB: even a small
+                        // video's data URL can blow the localStorage quota
+                        // (base64 inflates 33%), which would silently lose
+                        // the wallpaper on the next reload. Only when idb is
+                        // unavailable do we fall back to the data-URL path.
+                        void saveVideoBlob(file).then((id) => {
+                          if (id !== '') {
+                            setWallpaper(id)
+                          } else {
+                            void fileToDataUrl(file).then(setWallpaper)
+                          }
+                        })
+                      }
+                      e.target.value = ''
+                    }}
+                  />
                   <button type="button" className={css.pickButton} onClick={() => { fileRef.current?.click() }}>
-                    {t('aqua.chooseWallpaper')}
+                    {t('aqua.chooseImage')}
+                  </button>
+                  <button type="button" className={css.pickButton} onClick={onChooseVideo}>
+                    {t('aqua.chooseVideo')}
                   </button>
                   {wallpaper !== '' && (
                     <button type="button" className={css.deleteButton} onClick={() => { setWallpaper('') }}>
@@ -181,8 +291,21 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
                 </div>
               </div>
               <div className={css.knobHint}>{t('aqua.wallpaperHint')}</div>
-              <Knob label={t('aqua.wallpaperBlur')} value={wallpaperBlur} min={0} max={40} step={0.5} unit="px" onChange={setWallpaperBlur} />
-              <Knob label={t('aqua.wallpaperFrost')} value={wallpaperFrost} min={0} max={100} step={1} unit="%" onChange={setWallpaperFrost} />
+              {/* 视频壁纸不支持模糊/磨砂调节（视频直接清晰播放） */}
+              {!isVideoWallpaper && (
+                <>
+                  <Knob label={t('aqua.wallpaperBlur')} value={wallpaperBlur} min={0} max={40} step={0.5} unit="px" onChange={setWallpaperBlur} />
+                  <Knob label={t('aqua.wallpaperFrost')} value={wallpaperFrost} min={0} max={100} step={1} unit="%" onChange={setWallpaperFrost} />
+                </>
+              )}
+              {/* 视频壁纸：模糊度 + 亮度，配上提醒 */}
+              {isVideoWallpaper && (
+                <>
+                  <Knob label={t('aqua.videoBlur')} value={videoBlur} min={0} max={40} step={0.5} unit="px" onChange={setVideoBlur} />
+                  <Knob label={t('aqua.videoBrightness')} value={videoBrightness} min={0} max={100} step={1} unit="%" onChange={setVideoBrightness} />
+                  <div className={css.knobHint}>{t('aqua.videoHint')}</div>
+                </>
+              )}
             </>
           )}
 

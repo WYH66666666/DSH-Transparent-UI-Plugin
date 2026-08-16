@@ -22,14 +22,12 @@
    step; the smaller surfaces (stats / bubble / menu / + button) keep their
    own base alphas and only scale by the same frost multiplier. ---------- */
 [data-dsh-aqua] {
-  --dsh-aqua-glass-card-light: linear-gradient(180deg,
-    color-mix(in srgb, rgb(255 255 255) calc(50% * var(--dsh-aqua-frost, 1)), transparent),
-    color-mix(in srgb, rgb(255 255 255) calc(35% * var(--dsh-aqua-frost, 1)), transparent));
+  /* FLAT glass: one even tone per scheme (no vertical gradient — a darker
+     bottom stop read as a black fade inside the composer). */
+  --dsh-aqua-glass-card-light: color-mix(in srgb, rgb(255 255 255) calc(42% * var(--dsh-aqua-frost, 1)), transparent);
   /* Dark glass is a NEUTRAL cool gray, not blue: raising frost to max would
      otherwise reveal the blue base and read as a blue slab in dark mode. */
-  --dsh-aqua-glass-card-dark: linear-gradient(180deg,
-    color-mix(in srgb, rgb(42 46 56) calc(50% * var(--dsh-aqua-frost, 1)), transparent),
-    color-mix(in srgb, rgb(22 25 34) calc(50% * var(--dsh-aqua-frost, 1)), transparent));
+  --dsh-aqua-glass-card-dark: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--dsh-aqua-frost, 1)), transparent);
 }
 
 [data-dsh-aqua] [data-dsh-frame] {
@@ -140,11 +138,14 @@
 }
 
 /* Custom wallpaper: the backdrop-source knob swaps the fluid board for an
-   image. `object-fit: cover` fills the page while preserving aspect ratio;
-   the blur and frost knobs ride --dsh-aqua-wallpaper-blur / -frost. */
+   image or video. `object-fit: cover` fills the page while preserving
+   aspect ratio; the blur and frost knobs ride --dsh-aqua-wallpaper-blur /
+   -frost. The layer is a STANDALONE fixed element (not inside the ambient):
+   videos fail to composite under the ambient's animated opacity group. */
 [data-dsh-aqua] [data-dsh-aqua-wallpaper] {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: -1;
   overflow: hidden;
 }
 
@@ -152,6 +153,26 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Video wallpaper: a plain <video> element (the browser's own decoder, no
+   player chrome) filling the layer with cover crop at any window size. A
+   direct element — not an iframe — keeps backdrop-filter sampling it, so
+   the glass panels stay frosted above the video. */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper-video] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  pointer-events: none;
+  /* The 视频模糊度 knob drives the film's own blur. */
+  filter: blur(var(--dsh-aqua-video-blur, 0px));
+}
+
+/* Wallpaper blur applies to images only — videos play sharp. */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper-img] {
   filter: blur(var(--dsh-aqua-wallpaper-blur, 0px));
 }
 
@@ -166,6 +187,18 @@
 
 [data-dsh-aqua] body[data-ds-dark-theme] [data-dsh-aqua-wallpaper]::after {
   background: rgb(12 18 27 / var(--dsh-aqua-wallpaper-frost, 0));
+}
+
+/* Video wallpaper: a dim acrylic scrim keeps the chat text readable — the
+   video stays alive behind it but calm. The 视频亮度 knob drives the veil's
+   alpha (--dsh-aqua-video-dim); the 视频模糊度 knob blurs the film itself. */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper][data-media='video']::after {
+  display: block;
+  background: rgb(255 255 255 / calc(var(--dsh-aqua-video-dim, 0.36) * 1.3));
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [data-dsh-aqua-wallpaper][data-media='video']::after {
+  background: rgb(8 12 20 / var(--dsh-aqua-video-dim, 0.36));
 }
 
 /* Particle whale: centered on the main column (position/size arrive inline
@@ -195,7 +228,7 @@
   display: none;
 }
 
-[data-dsh-aqua] [data-dsh-aqua-ambient][data-background='fluid'] [data-dsh-aqua-wallpaper] {
+[data-dsh-aqua] [data-dsh-aqua-wallpaper][data-background='fluid'] {
   display: none;
 }
 
@@ -360,6 +393,18 @@
   background: color-mix(in srgb, rgb(0 0 0) calc(40% * var(--dsh-aqua-frost, 1)), transparent);
 }
 
+/* Video wallpaper: bubbles carry a REAL plate (frost-independent) so the
+   text never fights the film; the backdrop blur still frosts the video. */
+html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] [class*='bubble'] {
+  background: color-mix(in srgb, rgb(255 255 255) 70%, transparent);
+  border-color: rgba(19, 45, 83, 0.2);
+}
+
+html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[data-ds-dark-theme] [class*='bubble'] {
+  background: color-mix(in srgb, rgb(0 0 0) 50%, transparent);
+  border-color: rgba(148, 180, 220, 0.22);
+}
+
 /* Card family (hover cards, panels, plugin cards, tool cards, the composer). */
 [data-dsh-float] [class*='card'] {
   border-radius: 14px;
@@ -394,18 +439,68 @@
     0 10px 36px rgba(2, 6, 14, 0.5);
 }
 
-/* Fused state: once the stats line is docked underneath, the card's bottom
-   opens into it —square bottom corners, no bottom border —and its drop
-   shadow hands off to the stats band, so card + footer read as ONE glass
-   card instead of two stacked pills. */
-[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card] {
-  border-radius: 24px 24px 0 0;
-  border-bottom: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+/* Fused state: once the stats line is docked underneath, the WHOLE inputbar
+   becomes ONE glass slab — a single background, blur, border and shadow on
+   the wrapper. The card and stats turn transparent inside it (their blur
+   and tone can never drift apart again); only the hairline divider at the
+   seam stays. The slab shrinks to its content width (max-content) so the
+   glass hugs the composer exactly. */
+[data-dsh-aqua][data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) {
+  width: calc(var(--dsh-chat-content-width) + 32px);
+  max-width: none;
+  margin: 0 auto 12px;
+  padding: 0;
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-radius: 24px;
+  background: var(--dsh-aqua-glass-card-light);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 36px rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
 }
 
-[data-dsh-float] body[data-ds-dark-theme] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card] {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-inputbar]:has([data-dsh-stats]) {
+  border-color: rgba(148, 180, 220, 0.32);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 10px 36px rgba(2, 6, 14, 0.5);
+}
+
+[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card] {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card]::after {
+  display: none;
+}
+
+[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-dsh-stats] {
+  width: 100%;
+  max-width: none;
+  /* Dock at the very bottom of the slab: the band's MIN height equals the
+     24px corner radius, so the divider lands exactly where the left/right
+     bottom corners start to curve. Block layout (not flex) keeps the stock
+     single-line ellipsis, so long stats never spill past the right edge. */
+  margin: auto 0 0;
+  min-height: 24px;
+  box-sizing: border-box;
+  display: block;
+  padding: 2px 16px;
+  border: none;
+  border-top: 1px solid rgba(19, 45, 83, 0.18);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-inputbar]:has([data-dsh-stats]) [data-dsh-stats] {
+  border-top-color: rgba(148, 180, 220, 0.24);
 }
 
 [data-dsh-float] [data-composer-card]::after {
@@ -476,6 +571,7 @@
   border-right: 1px solid rgba(150, 190, 245, 0.65);
   border-radius: 20px;
   background: var(--dsh-aqua-glass-card-light);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 10px 34px rgba(19, 45, 83, 0.16);
@@ -570,22 +666,35 @@
   margin: 0 auto;
   padding: 2px 16px;
   border: 1px solid rgba(19, 45, 83, 0.26);
-  border-top: 1px solid rgba(19, 45, 83, 0.22);
+  /* The ONLY seam cue: one hairline between the two pieces of the same
+     glass slab (the composer card drops its bottom border when fused). */
+  border-top: 1px solid rgba(19, 45, 83, 0.18);
   border-radius: 0 0 24px 24px;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, rgb(255 255 255) calc(26% * var(--dsh-aqua-frost, 1)), transparent),
-    color-mix(in srgb, rgb(255 255 255) calc(14% * var(--dsh-aqua-frost, 1)), transparent));
+  /* Continues the card's FLAT tone exactly, so the two read as one piece
+     of glass with no tonal step at the seam. */
+  background: var(--dsh-aqua-glass-card-light);
   box-shadow: 0 10px 36px rgba(19, 45, 83, 0.16);
   backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  /* Stats text: neutral slate (dark on light glass, near-white on dark
+     glass) — kills the stock blue-gray cast. */
+  color: rgb(38 46 62 / 0.9);
 }
 
 [data-dsh-float] body[data-ds-dark-theme] [data-dsh-stats] {
   border-color: rgba(148, 180, 220, 0.32);
-  border-top-color: rgba(148, 180, 220, 0.3);
-  background: linear-gradient(180deg,
-    color-mix(in srgb, rgb(16 20 28) calc(60% * var(--dsh-aqua-frost, 1)), transparent),
-    color-mix(in srgb, rgb(10 12 18) calc(60% * var(--dsh-aqua-frost, 1)), transparent));
+  border-top-color: rgba(148, 180, 220, 0.24);
+  background: var(--dsh-aqua-glass-card-dark);
   box-shadow: 0 10px 36px rgba(2, 6, 14, 0.5);
+  color: rgb(228 236 248 / 0.92);
+}
+
+/* Composer placeholder: neutral, scheme-adaptive — no blue hint. */
+[data-dsh-float] [data-composer-card] textarea::placeholder {
+  color: rgb(55 64 84 / 0.5);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-composer-card] textarea::placeholder {
+  color: rgb(205 216 234 / 0.52);
 }
 
 /* ---------- Cursor spotlight glow: the official feature-card glow on the

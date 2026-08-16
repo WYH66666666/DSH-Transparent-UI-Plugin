@@ -41,6 +41,10 @@ export interface AquaRowState {
   wallpaperBlur: number
   /** Wallpaper frost veil, 0-100. */
   wallpaperFrost: number
+  /** Video wallpaper blur radius, px. */
+  videoBlur: number
+  /** Video wallpaper brightness, 0-100. */
+  videoBrightness: number
   /** Monotonic revision; -1 until first sync so revision 0 lands as a change. */
   revision: number
 }
@@ -64,6 +68,8 @@ export interface AquaSettingsPayload {
   press: boolean
   wallpaperBlur: number
   wallpaperFrost: number
+  videoBlur: number
+  videoBrightness: number
 }
 
 /** Declared action shape giving the exported factory a stable return type. */
@@ -95,6 +101,8 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
       press: true,
       wallpaperBlur: 0,
       wallpaperFrost: 0,
+      videoBlur: 6,
+      videoBrightness: 45,
       revision: -1,
     }),
     actions: {
@@ -117,6 +125,8 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
         d.press = next.press
         d.wallpaperBlur = next.wallpaperBlur
         d.wallpaperFrost = next.wallpaperFrost
+        d.videoBlur = next.videoBlur
+        d.videoBrightness = next.videoBrightness
         d.revision = revision
       },
     },

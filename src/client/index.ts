@@ -66,6 +66,8 @@ export function apply(ctx: ClientContext): void {
       press: s.press,
       wallpaperBlur: s.wallpaperBlur,
       wallpaperFrost: s.wallpaperFrost,
+      videoBlur: s.videoBlur,
+      videoBrightness: s.videoBrightness,
     }
   }
   const sync = (): void => {
@@ -153,6 +155,17 @@ export function apply(ctx: ClientContext): void {
       setWallpaperFrost: (wallpaperFrost) => {
         layer.setWallpaperFrost(wallpaperFrost)
         sync()
+      },
+      setVideoBlur: (videoBlur) => {
+        layer.setVideoBlur(videoBlur)
+        sync()
+      },
+      setVideoBrightness: (videoBrightness) => {
+        layer.setVideoBrightness(videoBrightness)
+        sync()
+      },
+      authorizeVideo: () => {
+        layer.authorizeVideo()
       },
     }
   }

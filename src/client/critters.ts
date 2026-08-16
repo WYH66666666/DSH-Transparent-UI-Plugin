@@ -71,7 +71,6 @@ function plankton(style: string): string {
  */
 export const AMBIENT_SCENE = [
   '<canvas data-dsh-aqua-fluid-canvas></canvas>',
-  '<div data-dsh-aqua-wallpaper><img data-dsh-aqua-wallpaper-img alt=""></div>',
   fish('top:22%;left:58%;animation-duration:9s', 30),
   fishLeft('top:36%;left:10%;animation-duration:14s;animation-delay:-4s', 20),
   fish('top:64%;left:76%;animation-duration:19s;animation-delay:-9s;opacity:0.55', 14),
@@ -95,12 +94,26 @@ export function ensureAmbientScene(): HTMLElement {
   const node = holder.firstElementChild
   if (!(node instanceof HTMLElement)) throw new Error('ui-aqua: ambient scene markup failed to parse')
   document.body.prepend(node)
+  // The wallpaper media lives in its OWN fixed layer: videos fail to
+  // composite inside the ambient's animated opacity group (the breathe
+  // animation), so the wallpaper must not be a descendant of it.
+  if (document.querySelector('[data-dsh-aqua-wallpaper-layer]') === null) {
+    const wallpaper = document.createElement('div')
+    wallpaper.setAttribute('data-dsh-aqua-wallpaper', '')
+    wallpaper.setAttribute('data-dsh-aqua-wallpaper-layer', '')
+    wallpaper.setAttribute('aria-hidden', 'true')
+    wallpaper.innerHTML =
+      '<img data-dsh-aqua-wallpaper-img alt="">' +
+      '<video data-dsh-aqua-wallpaper-video loop playsinline preload="auto"></video>'
+    document.body.prepend(wallpaper)
+  }
   return node
 }
 
 /** Remove the ambient container wherever it lives. */
 export function removeAmbientScene(): void {
   for (const node of document.querySelectorAll('[data-dsh-aqua-ambient]')) node.remove()
+  for (const node of document.querySelectorAll('[data-dsh-aqua-wallpaper-layer]')) node.remove()
 }
 
 /** Add the page edge-fade bands (5px gradient blur over the chat content). */
