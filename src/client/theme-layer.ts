@@ -15,7 +15,7 @@ import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/clien
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { ensureAmbientScene, removeAmbientScene, ensurePageFades, removePageFades } from './critters.ts'
 import { attachFluidShader, SITE_FLUID_PARAMS, type FluidParams, type FluidShaderHandle } from './fluid-shader.ts'
-import { fluidToneColors } from './fluid-tones.ts'
+import { fluidToneColors, HUE_BASE } from './fluid-tones.ts'
 import { attachFluidInteractions } from './fluid-interactions.ts'
 import { startSeamStamper } from './seam-stamper.ts'
 import { mountWhale, type WhaleHandle } from './whale.ts'
@@ -630,7 +630,10 @@ export class AquaLayer {
     if (next === this.settings.fluidHue) return
     this.settings.fluidHue = next
     writeSetting('fluidHue', next)
-    if (this.enabled) this.applyFluidPalettes()
+    if (this.enabled) {
+      this.applySettings()
+      this.applyFluidPalettes()
+    }
   }
 
   /** Set the fluid depth (0-100, continuous: deep ↔ pale). */
@@ -740,6 +743,12 @@ export class AquaLayer {
     style.setProperty('--dsh-aqua-frost', String(Math.min(this.settings.frost / 50, 1.4)))
     // The new-session button's frost rides the same knob, +20 points.
     style.setProperty('--dsh-aqua-surface-frost', String(Math.min((this.settings.frost + 20) / 50, 1.4)))
+    // The cursor glow follows the fluid tone — same hue as the bloom stops,
+    // so 色调 320 glows the same cyan-blue as the water.
+    const glowHue = ((this.settings.fluidHue + HUE_BASE) % 360 + 360) % 360
+    style.setProperty('--dsh-aqua-spot-color', this.dark
+      ? `hsla(${glowHue}, 90%, 62%, 0.17)`
+      : `hsla(${glowHue}, 90%, 45%, 0.16)`)
     style.setProperty('--dsh-aqua-wallpaper-blur', `${this.settings.wallpaperBlur}px`)
     style.setProperty('--dsh-aqua-wallpaper-frost', String(this.settings.wallpaperFrost / 100))
     // Background brightness: dark mode darkens (0 = pure black, 50 = off),

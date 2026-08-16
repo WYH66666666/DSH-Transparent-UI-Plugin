@@ -32,7 +32,7 @@ function hsl(h: number, s: number, l: number): string {
 
 /** The slider's 0/360 lands on the blue base, sweeping clockwise around the
  *  wheel — 320 lands on the cyan-blue the old hue-rotate system produced. */
-const HUE_BASE = 217
+export const HUE_BASE = 217
 
 /**
  * Palette for the given hue (0-360) and depth (0-100), per scheme.

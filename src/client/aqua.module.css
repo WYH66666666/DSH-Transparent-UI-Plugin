@@ -616,13 +616,8 @@
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: -1;
-  /* Luminous cyan: the fluid backdrop is already blue, so a blue glow
-     reads as plain brightening — cyan shifts the hue visibly. */
-  --dsh-aqua-spot-color: rgba(0, 170, 215, 0.16);
-}
-
-[data-dsh-aqua][data-dsh-aqua-spotlight] body[data-ds-dark-theme] [data-dsh-aqua-glow] {
-  --dsh-aqua-spot-color: rgba(90, 215, 255, 0.17);
+  /* The glow color follows the fluid tone: the layer writes
+     --dsh-aqua-spot-color on <html> from the 色调 slider. */
 }
 
 [data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-aqua-spot][data-spot-on] [data-dsh-aqua-glow] {
