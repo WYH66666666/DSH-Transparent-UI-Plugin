@@ -30,6 +30,10 @@ function hsl(h: number, s: number, l: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
+/** The slider's 0/360 lands on the blue base, sweeping clockwise around the
+ *  wheel — 320 lands on the cyan-blue the old hue-rotate system produced. */
+const HUE_BASE = 217
+
 /**
  * Palette for the given hue (0-360) and depth (0-100), per scheme.
  * The depth ramp is piecewise: the lower half sweeps from the absolute
@@ -38,7 +42,7 @@ function hsl(h: number, s: number, l: number): string {
  * sweeps from mid to pale (#FFCCCB for red). Stepless HSL interpolation.
  */
 export function fluidToneColors(dark: boolean, hue: number, depth: number): FluidToneColors {
-  const h = ((hue % 360) + 360) % 360
+  const h = (((hue + HUE_BASE) % 360) + 360) % 360
   const d = Math.min(1, Math.max(0, depth / 100))
   const ramp = (deep: number, mid: number, pale: number): number =>
     d < 0.5 ? deep + ((mid - deep) * d) / 0.5 : mid + ((pale - mid) * (d - 0.5)) / 0.5

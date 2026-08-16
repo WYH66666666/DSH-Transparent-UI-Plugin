@@ -260,7 +260,7 @@ const SETTINGS_DEFAULTS: AquaSettings = {
   mesh: true,
   spotlight: true,
   press: true,
-  fluidHue: 311,
+  fluidHue: 320,
   fluidDepth: 25,
   wallpaperBlur: 0,
   wallpaperFrost: 0,

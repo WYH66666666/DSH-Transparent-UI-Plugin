@@ -82,7 +82,7 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
       mode: 'mica',
       blur: 20,
       frost: 7,
-      fluidHue: 311,
+      fluidHue: 320,
       fluidDepth: 25,
       bgBrightness: 50,
       dark: false,
