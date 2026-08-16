@@ -619,6 +619,172 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   width: 100% !important;
 }
 
+/* ---------- dsh-better-sidebar deep adaptation (float mode). ----------
+   The fixed right/bottom panels consume `--dsw-specific-sidebar-fill`, which
+   this layer overrides to transparent — without this block they would paint
+   NO fill at all. The block rebuilds every surface with the Aqua material:
+     - the panel shell gets the frosted card recipe (gradient + blur +
+       hairline border + lift shadow) AND the native sidebar column's
+       floating silhouette (inset + rounded corners), so the glass reads as
+       Aqua instead of a flat edge-to-edge strip;
+     - interior surfaces (tab strip, panes, empty-state cards, url bar,
+       pills, dividers) are knocked translucent with frost-driven opacity —
+       the shell's backdrop-filter already blurs the ambient fluid, and the
+       translucent interiors let that blurred backdrop read through, so the
+       whole sidebar tracks the blur/frost knobs live (no surface keeps a
+       stock opaque fill);
+     - hover/active/selected states keep consuming the shared interactive
+       tokens, which this layer already re-tints to the Aqua blues.
+   Anchors: the stable `[data-dsh-better-sidebar]` mount, `:is()` plus the
+   case-insensitive `i` flag so the hashed module classes keep matching
+   across recompiles, and the shared `--dsw-alias-*` tokens so light/dark
+   both resolve through the theme. The layout push (#root margins) is left
+   untouched. ---------- */
+[data-dsh-float] [data-dsh-better-sidebar] > :is(div[class*='panel' i]) {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, rgb(255 255 255) calc(85% * var(--dsh-aqua-frost, 1)), transparent),
+    color-mix(in srgb, rgb(255 255 255) calc(62% * var(--dsh-aqua-frost, 1)), transparent));
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-left-color: rgba(150, 190, 245, 0.65);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 8px 28px rgba(19, 45, 83, 0.1);
+}
+
+/* The right panel mirrors the native sidebar column's floating card
+   silhouette — inset from the viewport edges with rounded corners. This is
+   what makes the glass read as Aqua instead of a flat edge-to-edge strip.
+   The layout push (#root margins) is left untouched. */
+[data-dsh-float] [data-dsh-better-sidebar] > :is(div[class*='panel' i]):not([class*='bottom' i]) {
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    -8px 6px 24px rgba(19, 45, 83, 0.16);
+}
+
+/* The bottom dock floats above the viewport floor; it keeps the plugin's
+   center-column alignment (left/right are inline-set by the plugin) and
+   only lifts off the bottom edge. */
+[data-dsh-float] [data-dsh-better-sidebar] > :is(div[class*='bottomPanel' i]) {
+  bottom: 12px;
+  border-radius: 16px;
+  overflow: hidden;
+  border-left: 1px solid rgba(19, 45, 83, 0.26);
+}
+
+/* Keep the width/height drag strips fully inside the rounded cards. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='panelResize'] {
+  left: 0;
+  width: 6px;
+}
+
+[data-dsh-float] [data-dsh-better-sidebar] [class*='bottomResize'] {
+  top: 0;
+  height: 6px;
+}
+
+/* The corner drag handle is positioned inline against the viewport corner —
+   shift it onto the floating cards' inset corner. */
+[data-dsh-float] [data-dsh-better-sidebar] > [class*='cornerHandle'] {
+  transform: translate(-12px, -12px);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-better-sidebar] > :is(div[class*='panel' i]) {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, rgb(42 46 56) calc(80% * var(--dsh-aqua-frost, 1)), transparent),
+    color-mix(in srgb, rgb(22 25 34) calc(62% * var(--dsh-aqua-frost, 1)), transparent));
+  border-color: rgba(148, 180, 220, 0.32);
+  border-left-color: rgba(148, 180, 220, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 28px rgba(2, 6, 14, 0.35);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-better-sidebar] > :is(div[class*='panel' i]):not([class*='bottom' i]) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    -8px 6px 24px rgba(2, 6, 14, 0.45);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-better-sidebar] > :is(div[class*='bottomPanel' i]) {
+  border-left-color: rgba(148, 180, 220, 0.32);
+}
+
+/* Tab strip: translucent over the glass with a hairline bottom edge. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='tabBar'] {
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) calc(62% * var(--dsh-aqua-frost, 1)), transparent);
+  border-bottom-color: color-mix(in srgb, var(--dsw-alias-border-l1) 55%, transparent);
+}
+
+/* Tabs: hairline separators; hover/active keep their Aqua-blue tints. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='tabList'] [class*='tab'] {
+  border-right-color: color-mix(in srgb, var(--dsw-alias-border-l1) 55%, transparent);
+}
+
+/* The sticky plus button sits above the translucent strip — keep it brighter. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='tabBarPlus'] {
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) calc(75% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+/* Content panes: translucent so the blurred fluid reads through. Scoped to
+   the bare pane element — paneContent/paneTab/paneCard nest inside it and
+   would otherwise stack layer on layer into opacity. The reader/editor
+   surfaces inside keep their own fills. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='pane']:not([class*='panel' i]):not([class*='paneC']):not([class*='paneT']):not([class*='paneE']):not([class*='paneD']) {
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) calc(55% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+/* Empty-state cards: frosted chips with hairline borders. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='paneCard'] {
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) calc(72% * var(--dsh-aqua-frost, 1)), transparent);
+  border-color: color-mix(in srgb, var(--dsw-alias-border-l1) 60%, transparent);
+}
+
+/* Browser tab url bar: translucent with a hairline. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='browserBar'] {
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) calc(55% * var(--dsh-aqua-frost, 1)), transparent);
+  border-bottom-color: color-mix(in srgb, var(--dsw-alias-border-l1) 55%, transparent);
+}
+
+/* Explorer ref pill: translucent chip. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='explorerRef'] {
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) calc(72% * var(--dsh-aqua-frost, 1)), transparent);
+  border-color: color-mix(in srgb, var(--dsw-alias-border-l1) 60%, transparent);
+}
+
+/* Split dividers: hairline instead of the stock full-opacity border. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='divider']::after {
+  background: color-mix(in srgb, var(--dsw-alias-border-l2) 45%, transparent);
+}
+
+/* Tab titles pick up the Aqua display face, like the nav treeitems. */
+[data-dsh-float] [data-dsh-better-sidebar] [class*='tabTitle'] {
+  font-family: 'Space Grotesk Variable', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  font-weight: 500;
+}
+
+/* Spotlight/tilt integration (seam-stamper stamps the panels with
+   data-dsh-aqua-spot): the generic spot rule pins panes `position: relative`
+   for its glow overlay — the sidebar panels are fixed-positioned and must
+   keep that (fixed already anchors the overlay; the glow only needs the
+   isolation the generic rule adds). The tilt's 0.1s transform transition
+   must also preserve the panels' slide (visibility-delayed) and width
+   transitions. */
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-better-sidebar] > :is(div[class*='panel' i]) {
+  position: fixed;
+}
+
+[data-dsh-float][data-dsh-aqua-press] [data-dsh-better-sidebar] > :is(div[class*='panel' i]) {
+  transition: transform 0.1s ease-out,
+    width var(--ds-transition-duration-slow) var(--ds-ease-in-out),
+    visibility 0s linear var(--ds-transition-duration-slow);
+}
+
 /* ---------- Trajectory view: a glass panel aligned with the header card's
    left/right edges (16px insets), frosted like the other surfaces. ---------- */
 [data-dsh-float] [data-dsh-trajectory] {
@@ -785,9 +951,13 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 }
 
 /* Glass surfaces: menus and dialogs follow the site's frosted recipe
-   (standard `backdrop-filter` only —see the composer card note). */
+   (standard `backdrop-filter` only —see the composer card note). Menus are
+   small text-dense popovers (model/effort pickers), so their fill carries a
+   high opacity floor that the frost knob only nudges — at very low frost a
+   fully knob-scaled fill went nearly transparent and the menu text ghosted
+   over the page copy behind it. */
 [data-dsh-float] [role='menu'] {
-  background: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--dsh-aqua-frost, 1)), transparent);
+  background: color-mix(in srgb, rgb(255 255 255) calc(72% + 20% * var(--dsh-aqua-frost, 1)), transparent);
   backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
 }
 
@@ -795,7 +965,7 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
    translucent override and no backdrop blur —the override made the panel
    muddy and the blur scrambled its fixed-position layout. */
 [data-dsh-float] body[data-ds-dark-theme] [role='menu'] {
-  background: color-mix(in srgb, rgb(28 32 42) calc(68% * var(--dsh-aqua-frost, 1)), transparent);
+  background: color-mix(in srgb, rgb(28 32 42) calc(80% + 20% * var(--dsh-aqua-frost, 1)), transparent);
 }
 
 /* ---------- Page edge fades: 5px gradient blur bands pinned to the top and
@@ -935,6 +1105,23 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 [data-dsh-compat] [class*='popover'],
 [data-dsh-compat] [class*='dropdown'] {
   backdrop-filter: blur(12px);
+}
+
+/* dsh-better-sidebar in compat mode: the case-insensitive panel match
+   extends the generic glass to BOTH fixed panels (the bare `[class*='panel']`
+   above misses `bottomPanel`'s capital P), and the sidebar-fill token the
+   panels consume is transparent in this layer, so give them a translucent
+   surface instead of none. The pane fill (bg-base) is NOT part of the compat
+   translucent token set, so knock it translucent here as well — the tab
+   strip and cards already turn glass through the compat surface tokens.
+   Blur follows the blur knob; translucency matches the compat surface level. */
+[data-dsh-compat] [data-dsh-better-sidebar] > :is(div[class*='panel' i]) {
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-compat] [data-dsh-better-sidebar] [class*='pane']:not([class*='panel' i]):not([class*='paneC']):not([class*='paneT']):not([class*='paneE']):not([class*='paneD']) {
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 50%, transparent);
 }
 
 /* ---------- Reduced motion: keep the static look, drop every effect. ---------- */
