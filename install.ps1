@@ -1,4 +1,9 @@
-# Aqua installer (Windows) - no npm, no build, no account, no git required.
+# Aqua installer (Windows) - BACKUP method. The recommended install is the
+# npm one-liner (no account, no git, no manual steps, all platforms):
+#
+#   dsh plugin --profile web add dsh-client-ui-aqua
+#
+# This script is the GitHub fallback: no npm, no git required.
 #
 # One command (from any directory):
 #   powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.com/WYH66666666/DSH-Transparent-UI-Plugin/raw/main/install.ps1' -OutFile install.ps1; .\install.ps1"
