@@ -446,8 +446,15 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
    seam stays. The slab shrinks to its content width (max-content) so the
    glass hugs the composer exactly. */
 [data-dsh-aqua][data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) {
+  /* The width math (including the 1px border) must match the header card's
+     border-box geometry, or the two boxes drift 2px apart. */
+  box-sizing: border-box;
   width: calc(var(--dsh-chat-content-width) + 32px);
-  max-width: none;
+  /* Cap instead of fixed: on narrow windows the seat shrinks below 780px and
+     a dead width overflows it — left edge slides under the floating sidebar
+     rail, right edge (with the send button) runs off-screen. 32px = the stock
+     16px composer clearance on each side, so the slab never outgrows the seat. */
+  max-width: calc(100% - 32px);
   margin: 0 auto 12px;
   padding: 0;
   border: 1px solid rgba(19, 45, 83, 0.26);
@@ -501,6 +508,23 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 
 [data-dsh-float] body[data-ds-dark-theme] [data-dsh-inputbar]:has([data-dsh-stats]) [data-dsh-stats] {
   border-top-color: rgba(148, 180, 220, 0.24);
+}
+
+/* Collapsed rail + narrow window: the slab no longer fits its 780px design
+   width, so pin it to the header card's exact geometry instead of centering —
+   same left/right edges, same width, no overlap with the floating rail.
+   The header's margins are 28px left / 16px right off the conversation root;
+   the seat is 8px narrower than that reference frame (the scroll body's
+   stable scrollbar gutter), hence 28px / 8px here. Below 880px the seat
+   (viewport − 56px track − 8px gutter) is under 816px, so the capped width
+   is always the applied one and the two boxes line up pixel-for-pixel; above
+   880px the stock centered 780px slab stays. */
+@media (max-width: 879px) {
+  [data-dsh-float] [data-dsh-frame][data-sidebar-collapsed] [data-dsh-inputbar]:has([data-dsh-stats]) {
+    max-width: calc(100% - 36px);
+    margin-left: 28px;
+    margin-right: 8px;
+  }
 }
 
 [data-dsh-float] [data-composer-card]::after {
@@ -619,6 +643,21 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   width: 100% !important;
 }
 
+/* Mobile drawer (≤700px): dsh-web-mobile-fix turns the expanded sidebar
+   column into an absolute full-screen overlay (left:0, width:100vw) and
+   forces width:100% onto the sidebar root. This glass column is
+   content-box with a 12px floating margin, 12px side padding and a 1px
+   border, so its border box ends up ~26px wider than the viewport and the
+   drawer's right edge (collapse / add-workspace buttons, session rows)
+   spills ~25px off-screen. Switch to border-box and drop the floating
+   offsets so the drawer hugs the viewport edge exactly. */
+@media (max-width: 700px) {
+  [data-dsh-float] [data-dsh-frame][data-details-collapsed]:not([data-sidebar-collapsed]) [class*='sidebarCol'] {
+    box-sizing: border-box;
+    margin: 0;
+  }
+}
+
 /* ---------- Trajectory view: a glass panel aligned with the header card's
    left/right edges (16px insets), frosted like the other surfaces. ---------- */
 [data-dsh-float] [data-dsh-trajectory] {
@@ -661,8 +700,10 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 [data-dsh-float] [data-dsh-stats] {
   position: relative;
   z-index: 8;
+  box-sizing: border-box;
   width: calc(var(--dsh-chat-content-width) + 32px);
-  max-width: none;
+  /* Same cap as the fused slab: never overflow the seat on narrow windows. */
+  max-width: calc(100% - 32px);
   margin: 0 auto;
   padding: 2px 16px;
   border: 1px solid rgba(19, 45, 83, 0.26);
@@ -678,6 +719,13 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   /* Stats text: neutral slate (dark on light glass, near-white on dark
      glass) — kills the stock blue-gray cast. */
   color: rgb(38 46 62 / 0.9);
+  /* Long stats (轮次·步数·预算…) scroll instead of truncating: the stock
+     single-line ellipsis hid the tail; a horizontal swipe/scroll reveals it.
+     Applies to the docked (fused) band too — the fused rule never overrides
+     the stock overflow/text-overflow, so this one reaches both states. */
+  overflow-x: auto;
+  text-overflow: clip;
+  scrollbar-width: thin;
 }
 
 [data-dsh-float] body[data-ds-dark-theme] [data-dsh-stats] {
