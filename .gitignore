@@ -1,4 +1,5 @@
 node_modules/
+.npm-stage/
 lib/tsconfig.tsbuildinfo
 lib/types/**/*.js
 lib/types/**/*.js.map
