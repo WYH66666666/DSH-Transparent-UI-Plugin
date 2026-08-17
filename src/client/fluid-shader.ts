@@ -364,6 +364,10 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     : navigator.userAgent.includes('Windows')
   const onMouseMove = (event: MouseEvent): void => {
     const rect = canvas.getBoundingClientRect()
+    // Guard against the wallpaper mode hiding the canvas (display: none → a
+    // 0×0 rect): feeding NaN/Infinity pointer coordinates into the flow
+    // shader poisons the simulation permanently (NaN never decays).
+    if (rect.width <= 0 || rect.height <= 0) return
     pointer.x = (event.clientX - rect.left) / rect.width
     pointer.y = 1 - (event.clientY - rect.top) / rect.height
   }
@@ -382,6 +386,8 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     const ratio = Math.min(window.devicePixelRatio || 1, 1.5)
     const nextWidth = Math.round(canvas.clientWidth * ratio)
     const nextHeight = Math.round(canvas.clientHeight * ratio)
+    // Hidden canvas (wallpaper mode): skip GL work entirely this frame.
+    if (nextWidth <= 0 || nextHeight <= 0) return
     if (nextWidth !== width || nextHeight !== height) {
       width = nextWidth
       height = nextHeight
