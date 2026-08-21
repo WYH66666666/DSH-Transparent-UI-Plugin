@@ -21,7 +21,7 @@ import { AquaPluginCard, type AquaPluginCardInjected } from './AquaPluginCard.ts
 import { AquaAppearanceRow, type AquaAppearanceRowInjected } from './AquaAppearanceRow.tsx'
 import { createAquaRowStore, type AquaSettingsPayload } from './settings-store.ts'
 import { en, NS, zh } from './locales.ts'
-import { AquaLayer } from './theme-layer.ts'
+import { AQUA_ENABLED_KEY, AquaLayer } from './theme-layer.ts'
 // Side-effect imports: the theme-layer stylesheet (unloaded with the plugin)
 // and the self-hosted Space Grotesk @font-face (no shell dependency).
 import './aqua.module.css'
@@ -29,6 +29,19 @@ import './fonts.module.css'
 
 /** Required services: theme override stack plus the settings-card surfaces. */
 export const inject = ['theme', 'slots', 'locale', 'settingsScope']
+
+/**
+ * Read the pre-settings-namespace enable flag without confusing an absent
+ * key with an explicitly stored `false` value.
+ */
+function readLegacyEnabled(): boolean | undefined {
+  try {
+    const raw = localStorage.getItem(AQUA_ENABLED_KEY)
+    return raw === null ? undefined : raw === 'true'
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * Client plugin body.
@@ -41,11 +54,33 @@ export function apply(ctx: ClientContext): void {
   // are all effects released on disable/dispose.
   const layer = new AquaLayer(ctx)
   const settings = ctx.settingsScope.bind<AquaSettings>({ namespace: AQUA_SETTINGS_NAMESPACE })
+  let legacyMigrationAttempted = false
   const syncHostEnabled = (): void => {
     const snapshot = settings.getSnapshot()
-    if (snapshot.status === 'ready' && typeof snapshot.value?.enabled === 'boolean') {
+    if (snapshot.status !== 'ready' || typeof snapshot.value?.enabled !== 'boolean') return
+
+    const user = snapshot.user
+    const hasHostEnabled = typeof user === 'object'
+      && user !== null
+      && !Array.isArray(user)
+      && Object.prototype.hasOwnProperty.call(user, 'enabled')
+    if (hasHostEnabled) {
+      legacyMigrationAttempted = true
       layer.setEnabled(snapshot.value.enabled)
+      return
     }
+
+    if (!legacyMigrationAttempted) {
+      legacyMigrationAttempted = true
+      const legacyEnabled = readLegacyEnabled()
+      if (legacyEnabled !== undefined) {
+        layer.setEnabled(legacyEnabled)
+        void settings.set('enabled', legacyEnabled)
+        return
+      }
+    }
+
+    layer.setEnabled(snapshot.value.enabled)
   }
   ctx.effect(() => {
     const dispose = settings.subscribe(syncHostEnabled)
