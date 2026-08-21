@@ -1,10 +1,11 @@
 /**
- * Aqua theme-layer plugin, node half. Pure UI plugin: the empty apply exists
- * so the plugin appears in the host cordis.yml / Loader; the browser half
- * ships via exports["./client"], discovered through the package.json
- * dsh.client declaration. The enable flag is a browser-local preference
- * (localStorage) — a client-only visual layer owns no host configuration.
+ * Aqua theme-layer plugin, node half. The browser half ships via
+ * exports["./client"], discovered through the package.json dsh.client
+ * declaration. The Host registers the namespace used to expose the browser
+ * card in the current DSH Plugins settings page.
  */
-/** Host plugin body — no host-side behavior for this surface plugin. */
-export declare function apply(): void;
+import type { Context } from '@deepseek-ai/cordis';
+/** Register the Aqua settings namespace when the Host settings service exists. */
+export declare function apply(ctx: Context): void;
+export { AQUA_ENABLED_FIELD, AQUA_SETTINGS_NAMESPACE, AquaSettingsSchema, DEFAULT_ENABLED, type AquaSettings, } from './aqua-settings.ts';
 //# sourceMappingURL=index.d.ts.map

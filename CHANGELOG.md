@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.1
+
+- 适配 DSH 0.1.1-rc.1：插件设置卡片使用 `settings.aqua` keyed slot，不再向 `settings.plugin.item` 传递旧的 `id`。
+
 ## v1.3.0
 
 - 视频壁纸全面升级：浏览器原生解码、无进度条、循环播放、铺满裁剪，窗口缩放实时自适应

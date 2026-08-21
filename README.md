@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Notice ⚠️: As DSH has been updated, I am unable to promptly update the plugin with the new ID due to my academic commitments. Please use an alternative agent to replace or repair it yourself to avoid crashes when installing this plugin.
+This release targets the current DSH `settings.plugin.item` keyed-slot contract.
 
 
 Aqua is a highly customizable glassmorphism theme for the DeepSeek Harness web UI. The header, sidebar, composer, stats line, and trajectory view all become panes of frosted glass. you can put video for wallpaper and Switch it off and the stock UI comes back exactly, with no source changes to DSH itself.
