@@ -52,6 +52,13 @@ const SEAMS: readonly Seam[] = [
   { attribute: 'data-dsh-aqua-spot', selector: '[data-dsh-inputbar]' },
   { attribute: 'data-dsh-aqua-spot', selector: '[data-dsh-trajectory]' },
   { attribute: 'data-dsh-aqua-spot', selector: '[data-dsh-surface]' },
+  // dsh-better-sidebar's fixed right/bottom panels join the spotlight/tilt
+  // system too (the aqua.module.css panel block keeps them fixed-positioned
+  // under the generic spot rule). Stamped on mount by the re-stamping
+  // observer; inert when the plugin is absent. The case-insensitive flag
+  // covers the hashed module classes across recompiles.
+  { attribute: 'data-dsh-aqua-spot', selector: '[data-dsh-better-sidebar] > div[class*="panel" i]:not([class*="bottomPanel" i])' },
+  { attribute: 'data-dsh-aqua-spot', selector: '[data-dsh-better-sidebar] > div[class*="bottomPanel" i]' },
   // The sidebar wordmark button (its badge plate gets the official pill).
   { attribute: 'data-dsh-wordmark', selector: '[class*="sidebarCol"] [class*="brand"]', first: true },
 ]
