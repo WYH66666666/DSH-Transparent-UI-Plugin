@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- 修复：在 harness `0.1.5-rc.1` 及以上无法加载（启动页报 `client-modules: require("@deepseek-ai/dsh-client-runtime/client") missed the module table`）。`@deepseek-ai/dsh-client-runtime` 已从 harness 移除，store 引擎迁到 `@deepseek-ai/dsh-client-store`（仍是平台种子模块，由 shell 静态链接）；客户端上下文类型同步改为 `@deepseek-ai/cordis` 的 `Context`
+
 ## v1.3.0
 
 - 视频壁纸全面升级：浏览器原生解码、无进度条、循环播放、铺满裁剪，窗口缩放实时自适应
