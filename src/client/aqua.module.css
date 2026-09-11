@@ -938,6 +938,109 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 }
 
 /* ---------- Reduced motion: keep the static look, drop every effect. ---------- */
+/* ---------- Native RIGHT sidebar (ui-layout `rightbarCol` + the
+   ui-sidebar-right panel). Both are 0.1.5 additions the float rules never
+   knew about: the shell only ever styled `sidebarCol`, so the right column
+   shipped as a flat opaque plate with a hard 0.5px left edge.
+
+   Two nodes matter. `rightbarCol` is the grid track: expanded it carries the
+   panel's width, collapsed it is 0 wide while the panel slides off-edge, so
+   the track must NOT be clipped or padded — its children keep the panel's own
+   inline width. The inner `panel` is what paints (`bg-base` + `border-l4`),
+   so the outer card carries the glass and the inner node is flattened to
+   avoid a double tint — the same split the left sidebar uses.
+
+   Selector note: the right side can NOT simply be appended to the left
+   rules. The left shell rule declares `position: relative`, but the panel
+   lays itself out against the frame, so the track stays `static` and only the
+   inner panel is positioned. The settings-dialog backdrop-filter rule IS
+   shared: both columns can trap that fixed overlay. ---------- */
+[data-dsh-float] [class*='rightbarCol'] {
+  z-index: 9;
+  margin: 12px 12px 12px 0;
+  padding: 0;
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-left: 1px solid rgba(150, 190, 245, 0.65);
+  border-radius: 20px;
+  background: var(--dsh-aqua-glass-card-light);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 34px rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [class*='rightbarCol'] {
+  border-color: rgba(148, 180, 220, 0.32);
+  border-left-color: rgba(148, 180, 220, 0.2);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 30px rgba(2, 6, 14, 0.32);
+}
+
+/* The inner plate: drop its own fill and hard edge (the outer card owns the
+   material) but keep a hairline so the tabs still read against the glass. */
+[data-dsh-float] [class*='rightbarCol'] [class*='panel'] {
+  background: transparent;
+  border-left: 1px solid rgba(19, 45, 83, 0.1);
+  border-radius: inherit;
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [class*='rightbarCol'] [class*='panel'] {
+  border-left-color: rgba(148, 180, 220, 0.16);
+}
+
+/* The reveal is a hard-edged wipe: the track grows 0 → 420px while the panel
+   keeps its full width beneath, so the boundary sweeps across as a vertical
+   seam. Fading the panel body in over a slightly longer clock reads as a
+   deliberate reveal instead of a tear.
+
+   The fade rides the panel BODY, never the panel itself: the shell transitions
+   `transform` on `.panel` for the off-edge slide, and an animation there would
+   override that transition and break the close. The body carries neither a
+   transition nor an animation, so it is safe to own. */
+/* The reveal is a hard-edged wipe: the track grows 0 → 420px while the panel
+   keeps its full width beneath, so the boundary sweeps across as a vertical
+   seam. Fading the panel body in over a slightly longer clock reads as a
+   deliberate reveal instead of a tear.
+
+   Two deliberate choices here. The fade rides the panel BODY, never the panel
+   itself: the shell transitions `transform` on `.panel` for the off-edge
+   slide, and an animation there would override that transition and break the
+   close. And the animation is declared inline under
+   `prefers-reduced-motion: no-preference` rather than as a named `@keyframes`
+   — a CSS-module keyframe name is content-hashed by the build, which would
+   pin this stylesheet to one particular build's hash. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Scoped to the OPEN state on purpose. The panel stays mounted while
+     collapsed (it just slides off-edge), so a rule that always matched would
+     fire once at mount — behind the off-edge panel — and never replay. Matching
+     only while `[data-sidebar-right-open]` is present makes the rule begin
+     applying at the exact moment the shell expands, which is what restarts the
+     animation on every open. */
+  [data-dsh-float] [class*='rightbarCol'] [class*='panel'][data-sidebar-right-open] [class*='panelBody'] {
+    animation: 0.34s var(--ds-ease-in-out) both dsh-aqua-rightbar-in;
+  }
+  @keyframes dsh-aqua-rightbar-in {
+    from {
+      opacity: 0;
+      transform: translateX(14px);
+    }
+  }
+}
+
+/* While the settings dialog is open the shared rule above strips the LEFT
+   column's backdrop-filter; the right column can trap the same overlay. */
+[data-dsh-aqua][data-dsh-float] [class*='rightbarCol']:has([role='dialog']) {
+  backdrop-filter: none;
+}
+
+/* Compat mode (no data-dsh-float): surfaces ride the generic token layer, so
+   only the plate fill needs flattening — the stock layout otherwise stays. */
+[data-dsh-compat] [class*='rightbarCol'] [class*='panel'] {
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-dsh-float] [data-phase='hero'],
   [data-dsh-float] [data-phase='active'],
