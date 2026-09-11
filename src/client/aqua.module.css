@@ -957,6 +957,11 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
    shared: both columns can trap that fixed overlay. ---------- */
 [data-dsh-float] [class*='rightbarCol'] {
   z-index: 9;
+  /* The shell animates this track's width (grid-template-columns 0.3s), so the
+     blur's backdrop is re-sampled every frame while the column resizes. Hinting
+     the filter promotes the column to its own compositor layer, which keeps
+     that re-sample off the main paint. */
+  will-change: backdrop-filter;
   margin: 12px 12px 12px 0;
   padding: 0;
   border: 1px solid rgba(19, 45, 83, 0.26);
@@ -988,6 +993,45 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 
 [data-dsh-float] body[data-ds-dark-theme] [class*='rightbarCol'] [class*='panel'] {
   border-left-color: rgba(148, 180, 220, 0.16);
+}
+
+/* The reveal is a hard-edged wipe: the track grows 0 → 420px while the panel
+   keeps its full width beneath, so the boundary sweeps across as a vertical
+   seam. Fading the panel body in over a slightly longer clock reads as a
+   deliberate reveal instead of a tear.
+
+   The fade rides the panel BODY, never the panel itself: the shell transitions
+   `transform` on `.panel` for the off-edge slide, and an animation there would
+   override that transition and break the close. The body carries neither a
+   transition nor an animation, so it is safe to own. */
+/* The reveal is a hard-edged wipe: the track grows 0 → 420px while the panel
+   keeps its full width beneath, so the boundary sweeps across as a vertical
+   seam. Fading the panel body in over a slightly longer clock reads as a
+   deliberate reveal instead of a tear.
+
+   Two deliberate choices here. The fade rides the panel BODY, never the panel
+   itself: the shell transitions `transform` on `.panel` for the off-edge
+   slide, and an animation there would override that transition and break the
+   close. And the animation is declared inline under
+   `prefers-reduced-motion: no-preference` rather than as a named `@keyframes`
+   — a CSS-module keyframe name is content-hashed by the build, which would
+   pin this stylesheet to one particular build's hash. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Scoped to the OPEN state on purpose. The panel stays mounted while
+     collapsed (it just slides off-edge), so a rule that always matched would
+     fire once at mount — behind the off-edge panel — and never replay. Matching
+     only while `[data-sidebar-right-open]` is present makes the rule begin
+     applying at the exact moment the shell expands, which is what restarts the
+     animation on every open. */
+  [data-dsh-float] [class*='rightbarCol'] [class*='panel'][data-sidebar-right-open] [class*='panelBody'] {
+    animation: 0.34s var(--ds-ease-in-out) both dsh-aqua-rightbar-in;
+  }
+  @keyframes dsh-aqua-rightbar-in {
+    from {
+      opacity: 0;
+      transform: translateX(14px);
+    }
+  }
 }
 
 /* While the settings dialog is open the shared rule above strips the LEFT
