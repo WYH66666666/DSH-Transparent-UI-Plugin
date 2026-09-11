@@ -83,25 +83,6 @@
 /* ---------- Ambient scene: the living deep-sea layer (injected by the
    plugin). A deepseek.com-style fluid board —top light wash plus three
    slowly drifting blurred fluid masses —with marine life riding over it. ---------- */
-/* Performance knob for the ambient layer. It is `position: fixed; inset: 0`
-   with three full-viewport gradients, so ANY layout change on the page
-   re-materializes it. Measured in a software-rasterized headless shell, hiding
-   it lifted the right-sidebar reveal from ~16fps to ~54fps; every compositor
-   hint tried (will-change transform/opacity, contain: paint, position:
-   absolute) changed nothing — only not painting it helps. A GPU-backed browser
-   composites this far more cheaply, so the default stays visible. Set
-   `--dsh-aqua-ambient-vis: hidden` on <html> to buy frames back.
-
-   A descendant rule on purpose: a declaration inside the ambient rule itself
-   can never be overridden from <html> (the element's own value wins), which is
-   how the first attempts at this knob silently did nothing. `visibility` and
-   not `opacity` — an opacity-0 layer is still painted and composited, measured
-   no gain — and not `display: none`, which would take the fluid canvas and the
-   critters down with it. */
-[data-dsh-aqua] :is(body, main, div)[data-dsh-aqua-ambient] {
-  visibility: var(--dsh-aqua-ambient-vis, visible);
-}
-
 [data-dsh-aqua] [data-dsh-aqua-ambient] {
   position: fixed;
   inset: 0;
@@ -976,11 +957,6 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
    shared: both columns can trap that fixed overlay. ---------- */
 [data-dsh-float] [class*='rightbarCol'] {
   z-index: 9;
-  /* The shell animates this track's width (grid-template-columns 0.3s), so the
-     blur's backdrop is re-sampled every frame while the column resizes. Hinting
-     the filter promotes the column to its own compositor layer, which keeps
-     that re-sample off the main paint. */
-  will-change: backdrop-filter;
   margin: 12px 12px 12px 0;
   padding: 0;
   border: 1px solid rgba(19, 45, 83, 0.26);
