@@ -3,7 +3,12 @@
  * knobs and the backdrop source). The plugin's apply-world change listener is
  * the only writer; the row component reads via props.useStore.
  */
-import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
+// Platform seed module (shell PLATFORM_MODULES): the Store infrastructure moved
+// out of the removed `@deepseek-ai/dsh-client-runtime` into `dsh-client-store`
+// (harness be531688f3 "refactor(client): migrate consumers and remove Runtime").
+// The module table is frozen: a require it cannot answer fails the whole loader
+// entry, so this specifier must track the platform table exactly.
+import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 
 /** Store state mirrored from the Aqua settings scope. */
 export interface AquaRowState {
