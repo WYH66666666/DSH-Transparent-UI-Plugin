@@ -1,0 +1,959 @@
+/* ============================================================================
+ * Aqua theme layer —the deep-sea skin for the whole Web surface.
+ * Every rule is gated on the `data-dsh-aqua` attribute the plugin puts on
+ * <html> while enabled (removed on disable, and the stylesheet itself is
+ * unloaded with the plugin bundle), so off == the stock UI, exactly.
+ * Selectors deliberately use attribute/element hooks and stable data-* seams
+ * (never hashed module classes) so the layer survives recompiles.
+ * ========================================================================== */
+
+/* ---------- Canvas: body paints the base color; the frame goes transparent
+   so the ambient glow (::after) shows through the main column. The
+   conversation and details surfaces paint their own opaque base fill over
+   the frame —lift them too, or the glow never reaches the eye. ---------- */
+[data-dsh-aqua] body {
+  background: var(--dsw-alias-bg-base);
+}
+
+/* ---------- Knobs: the settings row writes --dsh-aqua-blur (px),
+   --dsh-aqua-frost (a 0-2 alpha multiplier) and --dsh-aqua-fluid-hue (deg)
+   onto <html>. The glass surfaces below consume them, so the sliders move
+   the whole skin live. Shared card recipes keep the four main panes in lock
+   step; the smaller surfaces (stats / bubble / menu / + button) keep their
+   own base alphas and only scale by the same frost multiplier. ---------- */
+[data-dsh-aqua] {
+  /* FLAT glass: one even tone per scheme (no vertical gradient — a darker
+     bottom stop read as a black fade inside the composer). */
+  --dsh-aqua-glass-card-light: color-mix(in srgb, rgb(255 255 255) calc(42% * var(--dsh-aqua-frost, 1)), transparent);
+  /* Dark glass is a NEUTRAL cool gray, not blue: raising frost to max would
+     otherwise reveal the blue base and read as a blue slab in dark mode. */
+  --dsh-aqua-glass-card-dark: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+[data-dsh-aqua] [data-dsh-frame] {
+  background: transparent;
+}
+
+[data-dsh-aqua] [data-phase],
+[data-dsh-aqua] [data-dsh-details] {
+  background: transparent;
+}
+
+/* The header card floats ABOVE the transcript: the scroll body slides up
+   behind the frosted glass (negative margin) and its padding starts content
+   below the card, so scrolling text passes under the header and stays
+   visible through the blur instead of hard-clipping at the card edge.
+   z-index 8 (not 6) keeps it above the markdown CodeBlock sticky banner,
+   which the stock UI stacks at z-index 6 —otherwise a code block's copy
+   button row slides OVER the header and drifts as it scrolls past. */
+[data-dsh-float] [data-phase='active'] header {
+  position: relative;
+  z-index: 8;
+}
+
+/* The floating header breaks the code block banner's sticky anchoring, so
+   disable stickiness —the banner stays on its code block and scrolls with
+   it instead of sliding over the header and drifting. */
+[data-dsh-float] [class*='banner'] {
+  position: static;
+}
+
+[data-dsh-float] [data-phase='active'] [data-conversation-scroll] {
+  margin-top: -95px;
+  padding-top: 107px;
+}
+
+/* No scrim: the transcript and details sit directly on the (now slightly
+   darker) fluid —the fluid itself provides the ground, so no dark veil
+   covers either phase. */
+
+/* NOTE: the scrollport must NOT carry a mask-image. A mask turns the scroll
+   container into a backdrop root for its sticky composer child, which breaks
+   the composer card's `backdrop-filter` (the "send bar won't blur what's
+   behind it" bug) —content scrolls behind it sharp instead of frosted. */
+
+/* Active phase: drop the composer seat's opaque bottom slab and its 36px
+   fade band entirely —the base rule (`.root[data-phase='active']
+   .composerSeat`) is (0,3,0), so the doubled attribute selector below must
+   out-rank it or the fluid stays hidden behind a solid navy slab. */
+[data-dsh-aqua] [data-phase] [class*='composerSeat'][class*='composerSeat'] {
+  background: none;
+}
+
+/* ---------- Ambient scene: the living deep-sea layer (injected by the
+   plugin). A deepseek.com-style fluid board —top light wash plus three
+   slowly drifting blurred fluid masses —with marine life riding over it. ---------- */
+[data-dsh-aqua] [data-dsh-aqua-ambient] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
+    linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
+    radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [data-dsh-aqua-ambient] {
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
+    linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
+    radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
+}
+
+/* Background brightness knob: dark mode darkens (0 = pure black, 50 = off),
+   light mode brightens (50 = off, 100 = pure white) — the layer writes only
+   the overlay of the resolved scheme, so at most one layer is ever opaque.
+   Both layers live in ::after (painted ABOVE the fluid canvas / wallpaper
+   children); ::before would sit behind them and be invisible. */
+[data-dsh-aqua] [data-dsh-aqua-ambient]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, var(--dsh-aqua-brightness-white, 0)), rgba(255, 255, 255, var(--dsh-aqua-brightness-white, 0))),
+    linear-gradient(rgba(0, 0, 0, var(--dsh-aqua-brightness-black, 0)), rgba(0, 0, 0, var(--dsh-aqua-brightness-black, 0)));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-dsh-aqua] [data-dsh-aqua-ambient] {
+    animation: dsh-aqua-breathe 9s var(--ds-ease-in-out) infinite alternate;
+  }
+}
+
+@keyframes dsh-aqua-breathe {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
+}
+
+/* Fluid board canvas: the ported deepseek.com shader fills the whole
+   backdrop —one unified water under every column. The tone picker supplies
+   the palette (depth baked into the colors), so no global filter here. */
+[data-dsh-aqua] [data-dsh-aqua-fluid-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Custom wallpaper: the backdrop-source knob swaps the fluid board for an
+   image or video. `object-fit: cover` fills the page while preserving
+   aspect ratio; the blur and frost knobs ride --dsh-aqua-wallpaper-blur /
+   -frost. The layer is a STANDALONE fixed element (not inside the ambient):
+   videos fail to composite under the ambient's animated opacity group. */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+[data-dsh-aqua] [data-dsh-aqua-wallpaper-img] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Video wallpaper: a plain <video> element (the browser's own decoder, no
+   player chrome) filling the layer with cover crop at any window size. A
+   direct element — not an iframe — keeps backdrop-filter sampling it, so
+   the glass panels stay frosted above the video. */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper-video] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  pointer-events: none;
+  /* The 视频模糊度 knob drives the film's own blur. */
+  filter: blur(var(--dsh-aqua-video-blur, 0px));
+}
+
+/* Wallpaper blur applies to images only — videos play sharp. */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper-img] {
+  filter: blur(var(--dsh-aqua-wallpaper-blur, 0px));
+}
+
+/* Frost veil over the wallpaper (white in light, near-black in dark). */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / var(--dsh-aqua-wallpaper-frost, 0));
+  pointer-events: none;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [data-dsh-aqua-wallpaper]::after {
+  background: rgb(12 18 27 / var(--dsh-aqua-wallpaper-frost, 0));
+}
+
+/* Video wallpaper: a dim acrylic scrim keeps the chat text readable — the
+   video stays alive behind it but calm. The 视频亮度 knob drives the veil's
+   alpha (--dsh-aqua-video-dim); the 视频模糊度 knob blurs the film itself. */
+[data-dsh-aqua] [data-dsh-aqua-wallpaper][data-media='video']::after {
+  display: block;
+  background: rgb(255 255 255 / calc(var(--dsh-aqua-video-dim, 0.36) * 1.3));
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [data-dsh-aqua-wallpaper][data-media='video']::after {
+  background: rgb(8 12 20 / var(--dsh-aqua-video-dim, 0.36));
+}
+
+/* Particle whale: centered on the main column (position/size arrive inline
+   from the engine — the [data-phase] area right of the sidebar), screen
+   blended over the dark backdrop, multiply blended (gray particles) over
+   the light one. */
+[data-dsh-aqua] [data-dsh-aqua-whale] {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.92;
+}
+
+[data-dsh-aqua] [data-dsh-aqua-whale][data-scheme='light'] {
+  mix-blend-mode: multiply;
+}
+
+[data-dsh-aqua] [data-dsh-aqua-whale] canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Backdrop source: hide whichever board is not the active one. */
+[data-dsh-aqua] [data-dsh-aqua-ambient][data-background='wallpaper'] [data-dsh-aqua-fluid-canvas] {
+  display: none;
+}
+
+[data-dsh-aqua] [data-dsh-aqua-wallpaper][data-background='fluid'] {
+  display: none;
+}
+
+/* Interactive mesh: the site's dot-grid decoration, full-viewport inside the
+   ambient scene; the pointer interacts through the window listener. */
+[data-dsh-aqua] [data-dsh-aqua-mesh] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Ambient marine life: brand-fish silhouettes, shrimp, bubbles, plankton.
+   Positions, sizes, and per-critter timing arrive inline from the plugin
+   markup. The critters toggle hides the whole group. */
+[data-dsh-aqua] [data-dsh-aqua-ambient][data-critters='off'] [data-aqua-critter] {
+  display: none;
+}
+
+[data-dsh-aqua] [data-aqua-critter] {
+  position: absolute;
+  color: #7ea4df;
+  opacity: 0.22;
+}
+
+[data-dsh-aqua] [data-aqua-critter='fish'] {
+  animation: dsh-aqua-fish-swim 12s var(--ds-ease-in-out) infinite;
+}
+
+[data-dsh-aqua] [data-aqua-critter='fish-left'] {
+  animation: dsh-aqua-fish-swim-left 16s var(--ds-ease-in-out) infinite;
+}
+
+[data-dsh-aqua] [data-aqua-critter='bubble'] {
+  color: #a9c6ef;
+  opacity: 0;
+  animation: dsh-aqua-bubble-rise 9s ease-in infinite;
+}
+
+[data-dsh-aqua] [data-aqua-critter='plankton'] {
+  color: #7ea4df;
+  animation: dsh-aqua-plankton 5s ease-in-out infinite;
+}
+
+/* Uneven timing percentages make the swim read as living tempo: a quick
+   dart, a long glide, then a short settle. Per-fish durations arrive
+   inline (9s / 14s / 19s), so every whale swims at its own pace. */
+@keyframes dsh-aqua-fish-swim {
+  0% { transform: translate3d(0, 0, 0) rotate(-5deg); }
+  30% { transform: translate3d(40px, -15px, 0) rotate(4deg); }
+  70% { transform: translate3d(52px, -18px, 0) rotate(3deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(-5deg); }
+}
+
+@keyframes dsh-aqua-fish-swim-left {
+  0% { transform: translate3d(0, 0, 0) scaleX(-1) rotate(-5deg); }
+  30% { transform: translate3d(-34px, -12px, 0) scaleX(-1) rotate(4deg); }
+  70% { transform: translate3d(-44px, -15px, 0) scaleX(-1) rotate(3deg); }
+  100% { transform: translate3d(0, 0, 0) scaleX(-1) rotate(-5deg); }
+}
+
+@keyframes dsh-aqua-bubble-rise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: 0.5; }
+  100% { transform: translate3d(8px, -150px, 0); opacity: 0; }
+}
+
+@keyframes dsh-aqua-plankton {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.38; }
+}
+
+/* ---------- Corner language: 14px surfaces, 10px controls, 8px atoms.
+   Roles and stable data-* seams only (never hashed module classes). ---------- */
+
+/* Raised surfaces: menus, dialogs, toasts, hover cards, and hooked owners. */
+[data-dsh-float] [role='menu'],
+[data-dsh-float] [role='dialog'],
+[data-dsh-float] [role='alert'],
+[data-dsh-float] [data-dsh-surface] {
+  border-radius: 14px;
+}
+
+/* The new-session button is glass too: translucent fill + backdrop blur,
+   like the composer attach "+" bead. Its frost rides --dsh-aqua-surface-frost
+   (the frost knob + 20 points, written by the layer), so it always reads
+   noticeably frosted relative to the cards around it. */
+[data-dsh-float] [data-dsh-surface] {
+  background: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--dsh-aqua-surface-frost, 1)), transparent);
+  border: 1px solid rgba(19, 45, 83, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] [data-dsh-surface]:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(255 255 255) calc(74% * var(--dsh-aqua-surface-frost, 1)), transparent);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-surface] {
+  background: color-mix(in srgb, rgb(42 46 56) calc(62% * var(--dsh-aqua-surface-frost, 1)), transparent);
+  border-color: rgba(148, 180, 220, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-surface]:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(54 58 70) calc(70% * var(--dsh-aqua-surface-frost, 1)), transparent);
+}
+
+/* Small atoms: menu cells, tooltips, pills. */
+[data-dsh-float] [role='menuitem'],
+[data-dsh-float] [role='tooltip'],
+[data-dsh-float] [class*='pill'] {
+  border-radius: 8px;
+}
+
+/* Buttons (component roots carry the `button`-named class; icon circles
+   carry `iconButton`; the sidebar search circle is its own family). */
+[data-dsh-float] button[class*='button'] {
+  border-radius: 10px;
+}
+
+[data-dsh-float] [class*='iconButton'],
+[data-dsh-float] [class*='searchButton'] {
+  border-radius: 8px;
+}
+
+/* Composer attach "+": frosted circle over the card's own glass, so the
+   control reads as a brighter bead on the glass rather than a solid token. */
+[data-dsh-float] [data-dsh-add] {
+  background: color-mix(in srgb, rgb(255 255 255) calc(40% * var(--dsh-aqua-frost, 1)), transparent);
+  border: 1px solid rgba(19, 45, 83, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] [data-dsh-add]:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(255 255 255) calc(58% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-add] {
+  background: color-mix(in srgb, rgb(42 46 56) calc(40% * var(--dsh-aqua-frost, 1)), transparent);
+  border-color: rgba(148, 180, 220, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-add]:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(54 58 70) calc(52% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+/* Chat bubbles become glass: dark mode = black glass, light = frosted
+   white, both with a backdrop blur so the fluid shimmers behind the text. */
+[data-dsh-float] [class*='bubble'] {
+  border-radius: 14px;
+  border: 1px solid rgba(19, 45, 83, 0.14);
+  background: color-mix(in srgb, rgb(255 255 255) calc(42% * var(--dsh-aqua-frost, 1)), transparent);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [class*='bubble'] {
+  border-color: rgba(148, 180, 220, 0.14);
+  background: color-mix(in srgb, rgb(0 0 0) calc(40% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+/* Video wallpaper: bubbles carry a REAL plate (frost-independent) so the
+   text never fights the film; the backdrop blur still frosts the video. */
+html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] [class*='bubble'] {
+  background: color-mix(in srgb, rgb(255 255 255) 70%, transparent);
+  border-color: rgba(19, 45, 83, 0.2);
+}
+
+html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[data-ds-dark-theme] [class*='bubble'] {
+  background: color-mix(in srgb, rgb(0 0 0) 50%, transparent);
+  border-color: rgba(148, 180, 220, 0.22);
+}
+
+/* Card family (hover cards, panels, plugin cards, tool cards, the composer). */
+[data-dsh-float] [class*='card'] {
+  border-radius: 14px;
+}
+
+/* Composer card: the site's start-chat glass recipe —24px corners,
+   frosted translucent fill, backdrop blur, and a soft drop shadow.
+   (Standard `backdrop-filter` only: the prefixed alias is ignored by this
+   Chromium and lightningcss drops the standard property when both appear.
+   Declared after the card-family rule so the 24px corner wins the tie.) */
+[data-dsh-float] [data-composer-card],
+[data-dsh-float] [data-composer-card]::after {
+  border-radius: 24px;
+}
+
+[data-dsh-float] [data-composer-card] {
+  position: relative;
+  z-index: 8;
+  background: var(--dsh-aqua-glass-card-light);
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 36px rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-composer-card] {
+  background: var(--dsh-aqua-glass-card-dark);
+  border: 1px solid rgba(148, 180, 220, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 10px 36px rgba(2, 6, 14, 0.5);
+}
+
+/* Fused state: once the stats line is docked underneath, the WHOLE inputbar
+   becomes ONE glass slab — a single background, blur, border and shadow on
+   the wrapper. The card and stats turn transparent inside it (their blur
+   and tone can never drift apart again); only the hairline divider at the
+   seam stays. The slab shrinks to its content width (max-content) so the
+   glass hugs the composer exactly. */
+[data-dsh-aqua][data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) {
+  width: calc(var(--dsh-chat-content-width) + 32px);
+  max-width: none;
+  margin: 0 auto 12px;
+  padding: 0;
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-radius: 24px;
+  background: var(--dsh-aqua-glass-card-light);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 36px rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-inputbar]:has([data-dsh-stats]) {
+  border-color: rgba(148, 180, 220, 0.32);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 10px 36px rgba(2, 6, 14, 0.5);
+}
+
+[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card] {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card]::after {
+  display: none;
+}
+
+[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-dsh-stats] {
+  width: 100%;
+  max-width: none;
+  /* Dock at the very bottom of the slab: the band's MIN height equals the
+     24px corner radius, so the divider lands exactly where the left/right
+     bottom corners start to curve. Block layout (not flex) keeps the stock
+     single-line ellipsis, so long stats never spill past the right edge. */
+  margin: auto 0 0;
+  min-height: 24px;
+  box-sizing: border-box;
+  display: block;
+  padding: 2px 16px;
+  border: none;
+  border-top: 1px solid rgba(19, 45, 83, 0.18);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-inputbar]:has([data-dsh-stats]) [data-dsh-stats] {
+  border-top-color: rgba(148, 180, 220, 0.24);
+}
+
+[data-dsh-float] [data-composer-card]::after {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E");
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E");
+}
+
+/* Block family (code / terminal / diff / read / web / search): the corner
+   variables ride the same elements, so banners and footers follow. */
+[data-dsh-float] [class*='block'] {
+  border-radius: 14px;
+  --dsl-code-block-border-radius: 14px;
+  --dsl-diff-radius: 14px;
+  --dsl-read-radius: 14px;
+  --dsl-terminal-radius: 14px;
+  --dsl-web-radius: 14px;
+  --dsl-search-radius: 14px;
+}
+
+/* ---------- Session header: a detached glass card, same recipe as the
+   composer. The bottom edge opens into the chat —no bottom border and a
+   shallow shadow, so the original header/chat divider line is gone. ---------- */
+[data-dsh-float] header {
+  margin: 12px 16px 0;
+  padding: 10px 16px 8px;
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-bottom-color: transparent;
+  border-radius: 20px;
+  background: var(--dsh-aqua-glass-card-light);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 34px rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] header::after {
+  display: none;
+}
+
+[data-dsh-float] body[data-ds-dark-theme] header {
+  border-color: rgba(148, 180, 220, 0.32);
+  border-bottom-color: transparent;
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 30px rgba(2, 6, 14, 0.32);
+}
+
+/* Collapsed: the floating rail reaches 12px into the chat gutter, so the
+   header card steps right (28px inset = 16px clear of the rail's edge) —
+   the sidebar keeps its geometry, the top bar does the adjusting. */
+[data-dsh-float] [data-dsh-frame][data-sidebar-collapsed] header {
+  margin-left: 28px;
+}
+
+/* ---------- Sidebar: header-style glass card. Light = neutral cool white
+   (no green cast) with a luminous right edge; dark keeps its green-teal
+   tint. ---------- */
+[data-dsh-float] [class*='sidebarCol'] {
+  position: relative;
+  /* Above the header card (8): the settings panel is a fixed overlay
+     trapped in this stacking context, so the sidebar itself must outrank
+     the header or the panel's top edge sits under the top bar. */
+  z-index: 9;
+  margin: 12px;
+  padding: 10px 12px 14px;
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-right: 1px solid rgba(150, 190, 245, 0.65);
+  border-radius: 20px;
+  background: var(--dsh-aqua-glass-card-light);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 34px rgba(19, 45, 83, 0.16);
+  overflow: hidden;
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [class*='sidebarCol'] {
+  border-color: rgba(148, 180, 220, 0.32);
+  border-right: 1px solid rgba(148, 180, 220, 0.2);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 30px rgba(2, 6, 14, 0.32);
+}
+
+/* Collapsed rail: floats too (mica mode). The rail keeps the app's own
+   geometry: the frame's grid track slides 256→56 (300ms) while the app
+   fades the frozen wide content out (150ms) — pinning a width here would
+   clip the outgoing content instantly and hide that fade. The floating gap
+   comes from a 12px left margin plus a matching negative right margin
+   (outer size unchanged — the main column does not move; the rail just
+   reaches 12px into the chat gutter). Top/bottom margins are 12px too,
+   aligning the rail with the header card's top and the composer's bottom.
+   Padding must be zeroed explicitly: the expanded rule's 12px horizontal
+   padding would otherwise shove the rail buttons out of the narrow column.
+   Compat mode has no data-dsh-float, so it keeps the stock rail untouched. */
+[data-dsh-float] [data-dsh-frame][data-sidebar-collapsed] [class*='sidebarCol'] {
+  margin: 12px -12px 12px 12px;
+  padding: 0;
+  border-radius: 16px;
+  /* The right margin rides the same clock as the fade, so the rail eases
+     into its floating spot as the wide content dissolves. The transform
+     entry keeps the hover press smooth while collapsed (the collapsed rule
+     out-ranks the press transition, so it must carry transform too). */
+  transition: margin 150ms var(--ds-ease-in-out), border-radius 150ms var(--ds-ease-in-out), transform 0.1s ease-out;
+}
+
+/* The sidebar root freezes at the expanded column width via an inline
+   style (the collapse crossfade needs it) —release it so the content
+   follows the glass panel's width instead of overflowing its right edge.
+   Scoped to the dedicated seam: a broad `[class*='root']` selector would
+   also hit the settings panel (which renders inside the sidebar column)
+   and collapse its rows into vertical text. */
+[data-dsh-float] [data-dsh-frame]:not([data-sidebar-collapsed]) [data-dsh-sidebar-root] {
+  width: 100% !important;
+}
+
+/* ---------- Trajectory view: a glass panel aligned with the header card's
+   left/right edges (16px insets), frosted like the other surfaces. ---------- */
+[data-dsh-float] [data-dsh-trajectory] {
+  margin: 8px 16px 12px;
+  width: calc(100% - 32px);
+  height: calc(100% - 20px);
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-radius: 20px;
+  background: var(--dsh-aqua-glass-card-light);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 10px 34px rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  overflow: hidden;
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-trajectory] {
+  border-color: rgba(148, 180, 220, 0.32);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 30px rgba(2, 6, 14, 0.32);
+}
+
+/* The toolbar and timeline surfaces go transparent so the glass shows through. */
+[data-dsh-float] [data-dsh-trajectory] [role='toolbar'],
+[data-dsh-float] [data-dsh-trajectory] section[aria-label='Trajectory timeline'] {
+  background: transparent;
+}
+
+/* ---------- Stats line: the composer card's docked footer (original
+   styling). It shares the card's glass blur/width/border; the distinction
+   is a hairline divider at the seam plus a slightly more transparent
+   (recessed) fill. The seam itself is glued by the spotlight layer's fuse
+   strip (see below), so the two still read as one piece on screen. ---------- */
+[data-dsh-float] [data-dsh-inputbar]:not([class*='hero']) {
+  padding-bottom: 12px;
+}
+
+[data-dsh-float] [data-dsh-stats] {
+  position: relative;
+  z-index: 8;
+  width: calc(var(--dsh-chat-content-width) + 32px);
+  max-width: none;
+  margin: 0 auto;
+  padding: 2px 16px;
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  /* The ONLY seam cue: one hairline between the two pieces of the same
+     glass slab (the composer card drops its bottom border when fused). */
+  border-top: 1px solid rgba(19, 45, 83, 0.18);
+  border-radius: 0 0 24px 24px;
+  /* Continues the card's FLAT tone exactly, so the two read as one piece
+     of glass with no tonal step at the seam. */
+  background: var(--dsh-aqua-glass-card-light);
+  box-shadow: 0 10px 36px rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  /* Stats text: neutral slate (dark on light glass, near-white on dark
+     glass) — kills the stock blue-gray cast. */
+  color: rgb(38 46 62 / 0.9);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-dsh-stats] {
+  border-color: rgba(148, 180, 220, 0.32);
+  border-top-color: rgba(148, 180, 220, 0.24);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow: 0 10px 36px rgba(2, 6, 14, 0.5);
+  color: rgb(228 236 248 / 0.92);
+}
+
+/* Composer placeholder: neutral, scheme-adaptive — no blue hint. */
+[data-dsh-float] [data-composer-card] textarea::placeholder {
+  color: rgb(55 64 84 / 0.5);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [data-composer-card] textarea::placeholder {
+  color: rgb(205 216 234 / 0.52);
+}
+
+/* ---------- Cursor spotlight glow: the official feature-card glow on the
+   glass panes. The overlay div (data-dsh-aqua-glow) is appended inside every
+   data-dsh-aqua-spot pane by the controller, which writes the cursor
+   position into the inline background per pointermove and lights the pane
+   with the data-spot-on marker. The glow sits BEHIND the glass (z-index -1)
+   so the light diffuses through the translucent surface and never covers
+   the content or the outline. ---------- */
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-aqua-spot] {
+  position: relative;
+  /* A stacking context per pane: the glow sits at z-index -1 INSIDE it. */
+  isolation: isolate;
+}
+
+/* The injected glow div must never affect layout: inert by default (compat
+   mode / toggle off), absolute-positioned only while the glow is on. */
+[data-dsh-aqua] [data-dsh-aqua-glow] {
+  display: none;
+}
+
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-aqua-glow] {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  /* The glow color follows the fluid tone: the layer writes
+     --dsh-aqua-spot-color on <html> from the 色调 slider. */
+}
+
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-aqua-spot][data-spot-on] [data-dsh-aqua-glow] {
+  opacity: 1;
+}
+
+/* The fused composer + stats spot is an invisible wrapper (no radius of its
+   own) — give its glow the fused card's 24px corners. */
+[data-dsh-aqua][data-dsh-aqua-spotlight] [data-dsh-inputbar][data-dsh-aqua-spot] [data-dsh-aqua-glow] {
+  border-radius: 24px;
+}
+
+/* While the settings dialog is open, the sidebar must not carry ANY
+   backdrop-filter: it re-anchors the dialog's fixed overlay into the column
+   (the panel traps at 254px instead of its 800px design). */
+[data-dsh-aqua][data-dsh-float] [class*='sidebarCol']:has([role='dialog']) {
+  backdrop-filter: none;
+}
+
+/* ---------- Hover tilt: the geometric press is JS-driven (spotlight.ts
+   writes `perspective(800px) rotateX/rotateY` inline, tracking the cursor —
+   cursor right ⇒ right edge sinks, left edge lifts). A short transform
+   transition smooths both the press-in and the eased return, so the pane
+   glides into the press instead of flashing. */
+[data-dsh-float][data-dsh-aqua-press] [data-dsh-aqua-spot] {
+  transition: transform 0.1s ease-out;
+}
+
+/* ---------- Settings panel glass: material-only — a fixed 50px backdrop
+   blur with a scheme-differentiated translucent fill, applied in BOTH modes
+   (the gate is data-dsh-aqua, not the float attribute). The panel keeps its
+   stock layout, tokens and radius; only the surface turns glass. The `body`
+   hop out-ranks the compat generic glass (blur 12px on `panel` classes). ---------- */
+[data-dsh-aqua] body [role='dialog'] {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(50px);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] {
+  background: rgba(17, 26, 39, 0.55);
+}
+
+/* ---------- Sidebar: the selected session gets an accent bar and a soft halo. ---------- */
+[data-dsh-float] [role='treeitem'][aria-selected='true'] {
+  box-shadow:
+    inset 2px 0 0 var(--dsw-specific-sidebar-nav-item-active-accent),
+    0 0 16px rgba(110, 155, 232, 0.14);
+}
+
+/* ---------- Hover light: buttons and menu cells answer with a soft blue ring. ---------- */
+[data-dsh-float] button[class*='button']:hover:not(:disabled),
+[data-dsh-float] [role='menuitem']:hover:not(:disabled) {
+  box-shadow:
+    0 0 12px rgba(110, 155, 232, 0.16),
+    inset 0 0 0 1px rgba(148, 180, 220, 0.22);
+}
+
+/* Glass surfaces: menus and dialogs follow the site's frosted recipe
+   (standard `backdrop-filter` only —see the composer card note). */
+[data-dsh-float] [role='menu'] {
+  background: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--dsh-aqua-frost, 1)), transparent);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+/* Dialogs keep their native token surface (bg-layer-2) and radius; no
+   translucent override and no backdrop blur —the override made the panel
+   muddy and the blur scrambled its fixed-position layout. */
+[data-dsh-float] body[data-ds-dark-theme] [role='menu'] {
+  background: color-mix(in srgb, rgb(28 32 42) calc(68% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+/* ---------- Page edge fades: 5px gradient blur bands pinned to the top and
+   bottom of the viewport. They sit BELOW the floating glass (the header
+   card, composer card, and sidebar card hold z-index 8) but ABOVE the
+   scrolling chat content (z 7 > the code banner's 6) — content melting
+   into an edge passes under the blur, the glass itself stays sharp. A
+   faint scheme veil rides along: a touch of white on light, a touch of
+   black on dark. Click-transparent, so nothing is blocked. ---------- */
+[data-dsh-aqua] [data-dsh-aqua-fade] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 13px;
+  z-index: 7;
+  pointer-events: none;
+  backdrop-filter: blur(5px);
+  /* Whisper-thin veil: at the clear-frost defaults the fade shows through
+     the glass panes, so it must stay barely there (a 0.45 black read as a
+     film under the trajectory/stats glass). */
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [data-dsh-aqua-fade] {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+[data-dsh-aqua] [data-dsh-aqua-fade='top'] {
+  top: 0;
+  -webkit-mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+  mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+}
+
+[data-dsh-aqua] [data-dsh-aqua-fade='bottom'] {
+  bottom: 0;
+  -webkit-mask-image: linear-gradient(0deg, black 0%, transparent 100%);
+  mask-image: linear-gradient(0deg, black 0%, transparent 100%);
+}
+
+/* ---------- Keyboard focus and text selection (both schemes). ---------- */
+[data-dsh-aqua] :focus-visible {
+  outline: 2px solid rgba(110, 155, 232, 0.85);
+  outline-offset: 1px;
+}
+
+[data-dsh-aqua] ::selection {
+  background: rgba(110, 155, 232, 0.35);
+}
+
+/* ---------- Display typography: the serif face marks headings and the
+   session tree, so the page reads in two voices —serif headings over the
+   sans body. Space Grotesk keeps Latin/digits in the same stack. ---------- */
+
+/* Chat text: a 1px halo blurs the backdrop right at the glyph edges (the
+   closest CSS can get to "frost the background near the text"), plus a
+   whisper of drop shadow in light mode. */
+[data-dsh-aqua] [data-conversation-scroll] {
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+[data-dsh-aqua] body:not([data-ds-dark-theme]) [data-conversation-scroll] {
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.55), 0 1px 2px rgba(19, 45, 83, 0.08);
+}
+
+[data-dsh-float] [role='dialog'] h2 {
+  font-family: 'Space Grotesk Variable', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+[data-dsh-float] [role='treeitem'] {
+  font-family: 'Space Grotesk Variable', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  font-weight: 500;
+}
+
+/* ---------- Page-level transitions: phase flips, view tabs, entrances.
+   Container-level animations are opacity-only —a running transform would
+   re-anchor position:fixed descendants (menus/modals) mid-flight. ---------- */
+[data-dsh-float] [data-phase='hero'] {
+  animation: dsh-aqua-hero-in 0.32s var(--ds-ease-in-out);
+}
+
+[data-dsh-float] [data-phase='active'] {
+  animation: dsh-aqua-active-in 0.3s var(--ds-ease-in-out);
+}
+
+[data-dsh-float] [data-testid^='view-'] {
+  animation: dsh-aqua-view-in 0.26s var(--ds-ease-in-out);
+}
+
+[data-dsh-float] [class*='userRow'] {
+  animation: dsh-aqua-rise 0.28s var(--ds-ease-in-out) both;
+}
+
+[data-dsh-float] [data-tool] {
+  animation: dsh-aqua-rise 0.3s var(--ds-ease-in-out) both;
+}
+
+[data-dsh-float] [role='dialog'] {
+  animation: dsh-aqua-dialog-in 0.24s var(--ds-ease-in-out);
+}
+
+@keyframes dsh-aqua-hero-in {
+  from { opacity: 0; }
+}
+
+@keyframes dsh-aqua-active-in {
+  from { opacity: 0; }
+}
+
+@keyframes dsh-aqua-view-in {
+  from { opacity: 0; }
+}
+
+@keyframes dsh-aqua-rise {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+@keyframes dsh-aqua-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+}
+
+/* ---------- Compatibility mode: stock layout, generic glass material.
+   The layout rules above are gated on data-dsh-float, so in compat mode the
+   stock layout stays byte-for-byte. The translucent surface fill comes from
+   the compat token layer (every surface consuming the shared design tokens
+   turns glass automatically); these rules add the frosted blur on the
+   conservative surface families — menus, cards, bubbles, dropdowns,
+   tooltips, panels — so OTHER plugins' UI gets the same glass with zero
+   coordination. Dialogs keep their stock surface (no blur: a backdrop-filter
+   on [role='dialog'] scrambles its fixed-position layout). ---------- */
+[data-dsh-compat] [role='menu'],
+[data-dsh-compat] [role='tooltip'],
+[data-dsh-compat] [class*='card'],
+[data-dsh-compat] [class*='bubble'],
+[data-dsh-compat] [class*='panel'],
+[data-dsh-compat] [class*='popover'],
+[data-dsh-compat] [class*='dropdown'] {
+  backdrop-filter: blur(12px);
+}
+
+/* ---------- Reduced motion: keep the static look, drop every effect. ---------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-dsh-float] [data-phase='hero'],
+  [data-dsh-float] [data-phase='active'],
+  [data-dsh-float] [data-testid^='view-'],
+  [data-dsh-float] [class*='userRow'],
+  [data-dsh-float] [data-tool],
+  [data-dsh-float] [role='dialog'],
+  [data-dsh-aqua] [data-dsh-aqua-ambient],
+  [data-dsh-aqua] [data-aqua-critter] {
+    animation: none;
+  }
+
+  /* The tilt is skipped in JS under reduced motion (spotlight.ts checks the
+     media query); the glow stays as a plain hover wash. */
+
+  [data-dsh-aqua] [data-aqua-critter='bubble'] {
+    opacity: 0;
+  }
+}
